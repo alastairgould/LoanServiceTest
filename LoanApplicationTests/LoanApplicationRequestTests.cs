@@ -27,6 +27,7 @@ public class LoanApplicationRequestTests : IClassFixture<WebApplicationFactory<P
         var result = await response.Content.ReadFromJsonAsync<LoanApplicationResult>();
 
         result.Status.ShouldBe(LoanStatus.Pending);
+        result.Id.ShouldNotBe(Guid.Empty);
         result.CreatedAt.ShouldBe(currentTime.UtcDateTime);
     }
 
