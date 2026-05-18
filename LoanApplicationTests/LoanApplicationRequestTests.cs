@@ -15,7 +15,7 @@ public class LoanApplicationRequestTests : IClassFixture<WebApplicationFactory<P
     private readonly WebApplicationFactory<Program> _factory = new();
 
     [Fact]
-    public async Task LoanApplicationReturnsPending_WhenLoanApplicationPosted()
+    public async Task LoanApplicationReturnsPendingReturned_WhenLoanApplicationPosted()
     {
         var currentTime = new DateTimeOffset(2026, 4, 5, 13, 30, 30, TimeSpan.Zero);
         var fakeTimeProvider = new FakeTimeProvider();
