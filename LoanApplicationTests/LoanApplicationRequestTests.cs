@@ -98,11 +98,15 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
         problem!.Errors["Email"].ShouldBe(["A valid email is required."]);
     }
 
-    [Fact]
-    public async Task LoanApplicationReturnsValidationError_WhenEmailIsMalformed()
+    [Theory]
+    [InlineData("not-an-email")]
+    [InlineData("@gmail.com")]
+    [InlineData("john@")]
+    [InlineData("john@@gmail.com")]
+    public async Task LoanApplicationReturnsValidationError_WhenEmailIsMalformed(string email)
     {
         var client = CreateApi(new FakeTimeProvider());
-        using var request = CreateLoanRequest(email: "not-an-email");
+        using var request = CreateLoanRequest(email: email);
 
         var response = await client.PostAsync("/loan-applications", request);
 

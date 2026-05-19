@@ -1,3 +1,5 @@
+using System.Net.Mail;
+
 namespace LoanApplication.Features.ApplyForLoan;
 
 public static class LoanApplicationRequestValidator
@@ -8,7 +10,7 @@ public static class LoanApplicationRequestValidator
 
         if (string.IsNullOrWhiteSpace(request.Name))
             errors[nameof(request.Name)] = ["Name is required."];
-        if (string.IsNullOrWhiteSpace(request.Email) || !request.Email.Contains('@'))
+        if (string.IsNullOrWhiteSpace(request.Email) || !MailAddress.TryCreate(request.Email, out _))
             errors[nameof(request.Email)] = ["A valid email is required."];
         if (request.Amount <= 0)
             errors[nameof(request.Amount)] = ["Amount must be greater than zero."];
