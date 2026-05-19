@@ -1,4 +1,5 @@
 using LoanApplication.Features.ApplyForLoan;
+using LoanApplication.Features.RetrieveLoanApplication;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,6 +10,8 @@ builder.Services.AddOpenApi();
 builder.Services.AddControllers();
 builder.Services.AddDbContext<LoanContext>(options => options.UseSqlite("Data Source=loan-application.db"));
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddApplyForLoan();
+builder.Services.AddRetrieveLoanApplication();
 
 var app = builder.Build();
 

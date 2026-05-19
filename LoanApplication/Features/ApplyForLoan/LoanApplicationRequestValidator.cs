@@ -2,9 +2,9 @@ using System.Net.Mail;
 
 namespace LoanApplication.Features.ApplyForLoan;
 
-public static class LoanApplicationRequestValidator
+public class LoanApplicationRequestValidator
 {
-    public static Dictionary<string, string[]> Validate(LoanApplicationRequest request)
+    public Dictionary<string, string[]> Validate(LoanApplicationRequest request)
     {
         var errors = new Dictionary<string, string[]>();
 
