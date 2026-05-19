@@ -1,13 +1,9 @@
 using System.Text.Json;
-using EligibilityService;
-using EligibilityService.Features.LoanEligibility;
+using EligibilityService.Features.LoanEligibility.Rules;
 using EligibilityService.Infrastructure.BackgroundService;
 using EligibilityService.Infrastructure.Messaging;
-using EligibilityService.Features.LoanEligibility.Rules;
 using LoanApplication.Domain;
 using LoanApplication.Domain.Events;
-using Microsoft.Data.Sqlite;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using Shouldly;
 using LoanEntity = LoanApplication.Domain.LoanApplication;
@@ -16,6 +12,8 @@ namespace LoanApplicationTests;
 
 public class EligibilityProcessorTests
 {
+    private readonly EligibilityTestFixture _fixture = new();
+
     [Theory]
     [InlineData(3000, 10000, 24)]
     [InlineData(2000, 8000, 24)]
@@ -25,14 +23,17 @@ public class EligibilityProcessorTests
     public async Task ApprovesLoan_WhenAllRulesPass(int monthlyIncome, int requestedAmount, int termMonths)
     {
         var currentTime = new DateTimeOffset(2026, 4, 5, 13, 30, 30, TimeSpan.Zero);
-        var (sut, dbFactory) = await CreateEligibilityService(CreateTimeProvider(currentTime));
+        var fakeTimeProvider = new FakeTimeProvider();
+        fakeTimeProvider.AdjustTime(currentTime);
+
+        var sut = await CreateSut(fakeTimeProvider);
 
         var loanId = Guid.NewGuid();
-        await SeedLoan(dbFactory, loanId, monthlyIncome, requestedAmount, termMonths);
+        await SeedLoan(loanId, monthlyIncome, requestedAmount, termMonths);
 
         await sut.ProcessAsync(CancellationToken.None);
 
-        await using var db = await dbFactory.CreateDbContextAsync();
+        await using var db = _fixture.DbFactory.CreateDbContext();
         var loan = db.LoanApplications.Single(la => la.Id == loanId);
         loan.Status.ShouldBe(LoanStatus.Approved);
         loan.ReviewedAt.ShouldBe(currentTime.UtcDateTime);
@@ -41,14 +42,14 @@ public class EligibilityProcessorTests
     [Fact]
     public async Task RejectsLoan_WhenMonthlyIncomeTooLow()
     {
-        var (sut, dbFactory) = await CreateEligibilityService();
+        var sut = await CreateSut(new FakeTimeProvider());
 
         var loanId = Guid.NewGuid();
-        await SeedLoan(dbFactory, loanId, monthlyIncome: 1999, requestedAmount: 1000m, termMonths: 24);
+        await SeedLoan(loanId, monthlyIncome: 1999, requestedAmount: 1000m, termMonths: 24);
 
         await sut.ProcessAsync(CancellationToken.None);
 
-        await using var db = await dbFactory.CreateDbContextAsync();
+        await using var db = _fixture.DbFactory.CreateDbContext();
         db.LoanApplications.Single(la => la.Id == loanId).Status.ShouldBe(LoanStatus.Rejected);
 
         var entry = db.DecisionLogEntries.Single(d => d.LoanApplicationId == loanId && !d.Passed);
@@ -64,14 +65,14 @@ public class EligibilityProcessorTests
     [Fact]
     public async Task RejectsLoan_WhenRequestedAmountExceedsFourTimesIncome()
     {
-        var (sut, dbFactory) = await CreateEligibilityService();
+        var sut = await CreateSut(new FakeTimeProvider());
 
         var loanId = Guid.NewGuid();
-        await SeedLoan(dbFactory, loanId, monthlyIncome: 3000, requestedAmount: 12001m, termMonths: 24);
+        await SeedLoan(loanId, monthlyIncome: 3000, requestedAmount: 12001m, termMonths: 24);
 
         await sut.ProcessAsync(CancellationToken.None);
 
-        await using var db = await dbFactory.CreateDbContextAsync();
+        await using var db = _fixture.DbFactory.CreateDbContext();
         db.LoanApplications.Single(la => la.Id == loanId).Status.ShouldBe(LoanStatus.Rejected);
 
         var entry = db.DecisionLogEntries.Single(d => d.LoanApplicationId == loanId && !d.Passed);
@@ -83,14 +84,14 @@ public class EligibilityProcessorTests
     [Fact]
     public async Task RejectsLoan_WhenTermBelowMinimum()
     {
-        var (sut, dbFactory) = await CreateEligibilityService();
+        var sut = await CreateSut(new FakeTimeProvider());
 
         var loanId = Guid.NewGuid();
-        await SeedLoan(dbFactory, loanId, monthlyIncome: 3000, requestedAmount: 5000m, termMonths: 11);
+        await SeedLoan(loanId, monthlyIncome: 3000, requestedAmount: 5000m, termMonths: 11);
 
         await sut.ProcessAsync(CancellationToken.None);
 
-        await using var db = await dbFactory.CreateDbContextAsync();
+        await using var db = _fixture.DbFactory.CreateDbContext();
         db.LoanApplications.Single(la => la.Id == loanId).Status.ShouldBe(LoanStatus.Rejected);
 
         var entry = db.DecisionLogEntries.Single(d => d.LoanApplicationId == loanId && !d.Passed);
@@ -102,14 +103,14 @@ public class EligibilityProcessorTests
     [Fact]
     public async Task RejectsLoan_WhenTermAboveMaximum()
     {
-        var (sut, dbFactory) = await CreateEligibilityService();
+        var sut = await CreateSut(new FakeTimeProvider());
 
         var loanId = Guid.NewGuid();
-        await SeedLoan(dbFactory, loanId, monthlyIncome: 3000, requestedAmount: 5000m, termMonths: 61);
+        await SeedLoan(loanId, monthlyIncome: 3000, requestedAmount: 5000m, termMonths: 61);
 
         await sut.ProcessAsync(CancellationToken.None);
 
-        await using var db = await dbFactory.CreateDbContextAsync();
+        await using var db = _fixture.DbFactory.CreateDbContext();
         db.LoanApplications.Single(la => la.Id == loanId).Status.ShouldBe(LoanStatus.Rejected);
 
         var entry = db.DecisionLogEntries.Single(d => d.LoanApplicationId == loanId && !d.Passed);
@@ -121,16 +122,16 @@ public class EligibilityProcessorTests
     [Fact]
     public async Task DoesNotProcessLoan_WhenAlreadyReviewed()
     {
-        var (sut, dbFactory) = await CreateEligibilityService();
+        var sut = await CreateSut(new FakeTimeProvider());
 
         var loanId = Guid.NewGuid();
         var originalReviewedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        await SeedLoan(dbFactory, loanId, monthlyIncome: 1000, requestedAmount: 5000m, termMonths: 24,
+        await SeedLoan(loanId, monthlyIncome: 1000, requestedAmount: 5000m, termMonths: 24,
             status: LoanStatus.Approved, reviewedAt: originalReviewedAt);
 
         await sut.ProcessAsync(CancellationToken.None);
 
-        await using var db = await dbFactory.CreateDbContextAsync();
+        await using var db = _fixture.DbFactory.CreateDbContext();
         var loan = db.LoanApplications.Single(la => la.Id == loanId);
         loan.Status.ShouldBe(LoanStatus.Approved);
         loan.ReviewedAt.ShouldBe(originalReviewedAt);
@@ -142,14 +143,17 @@ public class EligibilityProcessorTests
     public async Task PublishesLoanApprovedEvent_WhenLoanApproved()
     {
         var currentTime = new DateTimeOffset(2026, 4, 5, 13, 30, 30, TimeSpan.Zero);
-        var (sut, dbFactory) = await CreateEligibilityService(CreateTimeProvider(currentTime));
+        var fakeTimeProvider = new FakeTimeProvider();
+        fakeTimeProvider.AdjustTime(currentTime);
+
+        var sut = await CreateSut(fakeTimeProvider);
 
         var loanId = Guid.NewGuid();
-        await SeedLoan(dbFactory, loanId, monthlyIncome: 3000, requestedAmount: 10000m, termMonths: 24);
+        await SeedLoan(loanId, monthlyIncome: 3000, requestedAmount: 10000m, termMonths: 24);
 
         await sut.ProcessAsync(CancellationToken.None);
 
-        await using var db = await dbFactory.CreateDbContextAsync();
+        await using var db = _fixture.DbFactory.CreateDbContext();
         var outbox = db.OutboxMessages.Single();
         outbox.Type.ShouldBe(nameof(LoanApproved));
         outbox.OccurredAt.ShouldBe(currentTime.UtcDateTime);
@@ -165,14 +169,17 @@ public class EligibilityProcessorTests
     public async Task PublishesLoanRejectedEvent_WhenLoanRejected()
     {
         var currentTime = new DateTimeOffset(2026, 4, 5, 13, 30, 30, TimeSpan.Zero);
-        var (sut, dbFactory) = await CreateEligibilityService(CreateTimeProvider(currentTime));
+        var fakeTimeProvider = new FakeTimeProvider();
+        fakeTimeProvider.AdjustTime(currentTime);
+
+        var sut = await CreateSut(fakeTimeProvider);
 
         var loanId = Guid.NewGuid();
-        await SeedLoan(dbFactory, loanId, monthlyIncome: 1999, requestedAmount: 1000m, termMonths: 24);
+        await SeedLoan(loanId, monthlyIncome: 1999, requestedAmount: 1000m, termMonths: 24);
 
         await sut.ProcessAsync(CancellationToken.None);
 
-        await using var db = await dbFactory.CreateDbContextAsync();
+        await using var db = _fixture.DbFactory.CreateDbContext();
         var outbox = db.OutboxMessages.Single();
         outbox.Type.ShouldBe(nameof(LoanRejected));
         outbox.OccurredAt.ShouldBe(currentTime.UtcDateTime);
@@ -188,14 +195,17 @@ public class EligibilityProcessorTests
     public async Task LogsDecisionEntryForEachRule_WhenLoanProcessed()
     {
         var currentTime = new DateTimeOffset(2026, 4, 5, 13, 30, 30, TimeSpan.Zero);
-        var (sut, dbFactory) = await CreateEligibilityService(CreateTimeProvider(currentTime));
+        var fakeTimeProvider = new FakeTimeProvider();
+        fakeTimeProvider.AdjustTime(currentTime);
+
+        var sut = await CreateSut(fakeTimeProvider);
 
         var loanId = Guid.NewGuid();
-        await SeedLoan(dbFactory, loanId, monthlyIncome: 3000, requestedAmount: 10000m, termMonths: 24);
+        await SeedLoan(loanId, monthlyIncome: 3000, requestedAmount: 10000m, termMonths: 24);
 
         await sut.ProcessAsync(CancellationToken.None);
 
-        await using var db = await dbFactory.CreateDbContextAsync();
+        await using var db = _fixture.DbFactory.CreateDbContext();
         var entries = db.DecisionLogEntries.Where(d => d.LoanApplicationId == loanId).ToList();
         entries.Count.ShouldBe(3);
         entries.ShouldAllBe(e => e.Passed);
@@ -205,20 +215,7 @@ public class EligibilityProcessorTests
         entries.Select(e => e.RuleName).ShouldBe(["MinimumIncome", "AmountWithinLimit", "TermWithinRange"], ignoreOrder: true);
     }
 
-    private static FakeTimeProvider CreateTimeProvider(DateTimeOffset? currentTime = null)
-    {
-        var timeProvider = new FakeTimeProvider();
-        
-        if (currentTime is { } time)
-        {
-            timeProvider.AdjustTime(time);
-        }
-        
-        return timeProvider;
-    }
-
-    private static async Task SeedLoan(
-        IDbContextFactory<LoanContext> dbFactory,
+    private async Task SeedLoan(
         Guid id,
         int monthlyIncome,
         decimal requestedAmount,
@@ -226,27 +223,15 @@ public class EligibilityProcessorTests
         LoanStatus status = LoanStatus.Pending,
         DateTime? reviewedAt = null)
     {
-        await using var db = await dbFactory.CreateDbContextAsync();
+        await using var db = _fixture.DbFactory.CreateDbContext();
         db.LoanApplications.Add(new LoanEntity(
             id, "John", "john@gmail.com", monthlyIncome, requestedAmount, termMonths,
             status, new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), reviewedAt));
         await db.SaveChangesAsync();
     }
 
-    private static async Task<(EligibilityProcessor Sut, IDbContextFactory<LoanContext> DbFactory)> CreateEligibilityService(TimeProvider? timeProvider = null)
+    private async Task<EligibilityProcessor> CreateSut(TimeProvider timeProvider)
     {
-        timeProvider ??= CreateTimeProvider();
-
-        var connection = new SqliteConnection("DataSource=:memory:");
-        connection.Open();
-        var options = new DbContextOptionsBuilder<LoanContext>()
-            .UseSqlite(connection)
-            .Options;
-
-        using (var init = new LoanContext(options))
-            init.Database.EnsureCreated();
-
-        var dbFactory = new TestLoanContextFactory(options);
         var publisherFactory = new OutboxEventPublisherFactory(timeProvider);
         var rules = new IEligibilityRule[]
         {
@@ -254,13 +239,7 @@ public class EligibilityProcessorTests
             new AmountWithinLimitRule(),
             new TermWithinRangeRule()
         };
-        var processorFactory = new EligibilityProcessorFactory(dbFactory, publisherFactory, timeProvider, rules);
-        var sut = await processorFactory.CreateAsync();
-        return (sut, dbFactory);
-    }
-
-    private sealed class TestLoanContextFactory(DbContextOptions<LoanContext> options) : IDbContextFactory<LoanContext>
-    {
-        public LoanContext CreateDbContext() => new(options);
+        var processorFactory = new EligibilityProcessorFactory(_fixture.DbFactory, publisherFactory, timeProvider, rules);
+        return await processorFactory.CreateAsync();
     }
 }
