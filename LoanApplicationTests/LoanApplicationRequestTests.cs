@@ -63,11 +63,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
     public async Task LoanApplicationReturnsValidationError_WhenNameIsEmpty()
     {
         var client = CreateApi(new FakeTimeProvider());
-        var loanApplication = new LoanApplicationRequest("", "john@gmail.com", 10000, 10000, 12);
-        using var request = new StringContent(
-            JsonSerializer.Serialize(loanApplication),
-            Encoding.UTF8,
-            "application/json");
+        using var request = CreateLoanRequest(name: "");
 
         var response = await client.PostAsync("/loan-applications", request);
 
@@ -80,11 +76,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
     public async Task LoanApplicationReturnsValidationError_WhenNameIsWhitespace()
     {
         var client = CreateApi(new FakeTimeProvider());
-        var loanApplication = new LoanApplicationRequest(" ", "john@gmail.com", 10000, 10000, 12);
-        using var request = new StringContent(
-            JsonSerializer.Serialize(loanApplication),
-            Encoding.UTF8,
-            "application/json");
+        using var request = CreateLoanRequest(name: " ");
 
         var response = await client.PostAsync("/loan-applications", request);
 
@@ -97,11 +89,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
     public async Task LoanApplicationReturnsValidationError_WhenEmailIsEmpty()
     {
         var client = CreateApi(new FakeTimeProvider());
-        var loanApplication = new LoanApplicationRequest("John", "", 10000, 10000, 12);
-        using var request = new StringContent(
-            JsonSerializer.Serialize(loanApplication),
-            Encoding.UTF8,
-            "application/json");
+        using var request = CreateLoanRequest(email: "");
 
         var response = await client.PostAsync("/loan-applications", request);
 
@@ -114,11 +102,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
     public async Task LoanApplicationReturnsValidationError_WhenEmailIsMalformed()
     {
         var client = CreateApi(new FakeTimeProvider());
-        var loanApplication = new LoanApplicationRequest("John", "not-an-email", 10000, 10000, 12);
-        using var request = new StringContent(
-            JsonSerializer.Serialize(loanApplication),
-            Encoding.UTF8,
-            "application/json");
+        using var request = CreateLoanRequest(email: "not-an-email");
 
         var response = await client.PostAsync("/loan-applications", request);
 
@@ -131,11 +115,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
     public async Task LoanApplicationReturnsValidationError_WhenAmountIsZero()
     {
         var client = CreateApi(new FakeTimeProvider());
-        var loanApplication = new LoanApplicationRequest("John", "john@gmail.com", 0, 10000, 12);
-        using var request = new StringContent(
-            JsonSerializer.Serialize(loanApplication),
-            Encoding.UTF8,
-            "application/json");
+        using var request = CreateLoanRequest(amount: 0);
 
         var response = await client.PostAsync("/loan-applications", request);
 
@@ -148,11 +128,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
     public async Task LoanApplicationReturnsValidationError_WhenAmountIsNegative()
     {
         var client = CreateApi(new FakeTimeProvider());
-        var loanApplication = new LoanApplicationRequest("John", "john@gmail.com", -1, 10000, 12);
-        using var request = new StringContent(
-            JsonSerializer.Serialize(loanApplication),
-            Encoding.UTF8,
-            "application/json");
+        using var request = CreateLoanRequest(amount: -1);
 
         var response = await client.PostAsync("/loan-applications", request);
 
@@ -165,11 +141,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
     public async Task LoanApplicationReturnsValidationError_WhenMonthlyIncomeIsZero()
     {
         var client = CreateApi(new FakeTimeProvider());
-        var loanApplication = new LoanApplicationRequest("John", "john@gmail.com", 10000, 0, 12);
-        using var request = new StringContent(
-            JsonSerializer.Serialize(loanApplication),
-            Encoding.UTF8,
-            "application/json");
+        using var request = CreateLoanRequest(monthlyIncome: 0m);
 
         var response = await client.PostAsync("/loan-applications", request);
 
@@ -182,11 +154,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
     public async Task LoanApplicationReturnsValidationError_WhenMonthlyIncomeIsNegative()
     {
         var client = CreateApi(new FakeTimeProvider());
-        var loanApplication = new LoanApplicationRequest("John", "john@gmail.com", 10000, -1, 12);
-        using var request = new StringContent(
-            JsonSerializer.Serialize(loanApplication),
-            Encoding.UTF8,
-            "application/json");
+        using var request = CreateLoanRequest(monthlyIncome: -1m);
 
         var response = await client.PostAsync("/loan-applications", request);
 
@@ -199,11 +167,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
     public async Task LoanApplicationReturnsValidationError_WhenTermMonthsIsZero()
     {
         var client = CreateApi(new FakeTimeProvider());
-        var loanApplication = new LoanApplicationRequest("John", "john@gmail.com", 10000, 10000, 0);
-        using var request = new StringContent(
-            JsonSerializer.Serialize(loanApplication),
-            Encoding.UTF8,
-            "application/json");
+        using var request = CreateLoanRequest(termMonths: 0);
 
         var response = await client.PostAsync("/loan-applications", request);
 
@@ -216,11 +180,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
     public async Task LoanApplicationReturnsValidationError_WhenTermMonthsIsNegative()
     {
         var client = CreateApi(new FakeTimeProvider());
-        var loanApplication = new LoanApplicationRequest("John", "john@gmail.com", 10000, 10000, -1);
-        using var request = new StringContent(
-            JsonSerializer.Serialize(loanApplication),
-            Encoding.UTF8,
-            "application/json");
+        using var request = CreateLoanRequest(termMonths: -1);
 
         var response = await client.PostAsync("/loan-applications", request);
 
@@ -229,12 +189,17 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
         problem!.Errors["TermMonths"].ShouldBe(["Term months must be greater than zero."]);
     }
 
-    private static StringContent CreateLoanRequest(string name = "John")
+    private static StringContent CreateLoanRequest(
+        string name = "John",
+        string email = "john@gmail.com",
+        int amount = 10000,
+        decimal monthlyIncome = 10000m,
+        int termMonths = 12)
     {
         StringContent? jsonContent = null;
         try
         {
-            var loanApplication = new LoanApplicationRequest(name, "john@gmail.com", 10000, 10000, 12);
+            var loanApplication = new LoanApplicationRequest(name, email, amount, monthlyIncome, termMonths);
 
             jsonContent = new(
                 JsonSerializer.Serialize(loanApplication),
