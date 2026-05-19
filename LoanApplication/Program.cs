@@ -1,3 +1,4 @@
+using EligibilityService;
 using LoanApplication.Domain;
 using LoanApplication.Features.ApplyForLoan;
 using LoanApplication.Features.RetrieveLoanApplication;
@@ -13,6 +14,7 @@ builder.Services.AddDbContext<LoanContext>(options => options.UseSqlite("Data So
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddApplyForLoan();
 builder.Services.AddRetrieveLoanApplication();
+builder.Services.AddEligibilityService();
 
 var app = builder.Build();
 
