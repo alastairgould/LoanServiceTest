@@ -1,5 +1,7 @@
+using EligibilityService.Messaging;
 using EligibilityService.Rules;
 using LoanApplication.Domain;
+using LoanApplication.Domain.Events;
 using Microsoft.EntityFrameworkCore;
 
 namespace EligibilityService;
@@ -7,11 +9,13 @@ namespace EligibilityService;
 public class EligibilityProcessor(
     IDbContextFactory<LoanContext> contextFactory,
     TimeProvider timeProvider,
+    IMessageBusFactory busFactory,
     IEnumerable<IEligibilityRule> rules)
 {
     public async Task ProcessAsync(CancellationToken cancellationToken)
     {
         await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
+        var bus = busFactory.CreateFor(context);
 
         var pending = await context.LoanApplications
             .AsNoTracking()
@@ -37,6 +41,12 @@ public class EligibilityProcessor(
             var newStatus = results.All(r => r.Passed) ? LoanStatus.Approved : LoanStatus.Rejected;
             var updated = loan with { Status = newStatus, ReviewedAt = now };
             context.LoanApplications.Update(updated);
+
+            IEvent @event = newStatus == LoanStatus.Approved
+                ? new LoanApproved(loan.Id, now)
+                : new LoanRejected(loan.Id, now);
+            
+            await bus.PublishAsync(@event, cancellationToken);
         }
 
         await context.SaveChangesAsync(cancellationToken);

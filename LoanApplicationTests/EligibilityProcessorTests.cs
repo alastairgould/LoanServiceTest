@@ -1,6 +1,9 @@
+using System.Text.Json;
 using EligibilityService;
+using EligibilityService.Messaging;
 using EligibilityService.Rules;
 using LoanApplication.Domain;
+using LoanApplication.Domain.Events;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
@@ -130,6 +133,53 @@ public class EligibilityProcessorTests
         loan.Status.ShouldBe(LoanStatus.Approved);
         loan.ReviewedAt.ShouldBe(originalReviewedAt);
         assertDb.DecisionLogEntries.Count(d => d.LoanApplicationId == loanId).ShouldBe(0);
+        assertDb.OutboxMessages.Count().ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task PublishesLoanApprovedEvent_WhenLoanApproved()
+    {
+        var currentTime = new DateTimeOffset(2026, 4, 5, 13, 30, 30, TimeSpan.Zero);
+        var (sut, dbFactory) = CreateEligibilityService(CreateTimeProvider(currentTime));
+
+        var loanId = Guid.NewGuid();
+        await SeedLoan(dbFactory, loanId, monthlyIncome: 3000, requestedAmount: 10000m, termMonths: 24);
+
+        await sut.ProcessAsync(CancellationToken.None);
+
+        await using var assertDb = await dbFactory.CreateDbContextAsync();
+        var outbox = assertDb.OutboxMessages.Single();
+        outbox.Type.ShouldBe(nameof(LoanApproved));
+        outbox.OccurredAt.ShouldBe(currentTime.UtcDateTime);
+        outbox.PublishedAt.ShouldBeNull();
+
+        var payload = JsonSerializer.Deserialize<LoanApproved>(outbox.Payload);
+        payload.ShouldNotBeNull();
+        payload.LoanApplicationId.ShouldBe(loanId);
+        payload.ApprovedAt.ShouldBe(currentTime.UtcDateTime);
+    }
+
+    [Fact]
+    public async Task PublishesLoanRejectedEvent_WhenLoanRejected()
+    {
+        var currentTime = new DateTimeOffset(2026, 4, 5, 13, 30, 30, TimeSpan.Zero);
+        var (sut, dbFactory) = CreateEligibilityService(CreateTimeProvider(currentTime));
+
+        var loanId = Guid.NewGuid();
+        await SeedLoan(dbFactory, loanId, monthlyIncome: 1999, requestedAmount: 1000m, termMonths: 24);
+
+        await sut.ProcessAsync(CancellationToken.None);
+
+        await using var assertDb = await dbFactory.CreateDbContextAsync();
+        var outbox = assertDb.OutboxMessages.Single();
+        outbox.Type.ShouldBe(nameof(LoanRejected));
+        outbox.OccurredAt.ShouldBe(currentTime.UtcDateTime);
+        outbox.PublishedAt.ShouldBeNull();
+
+        var payload = JsonSerializer.Deserialize<LoanRejected>(outbox.Payload);
+        payload.ShouldNotBeNull();
+        payload.LoanApplicationId.ShouldBe(loanId);
+        payload.RejectedAt.ShouldBe(currentTime.UtcDateTime);
     }
 
     [Fact]
@@ -195,13 +245,14 @@ public class EligibilityProcessorTests
             init.Database.EnsureCreated();
 
         var dbFactory = new TestLoanContextFactory(options);
+        var busFactory = new OutboxMessageBusFactory(timeProvider);
         var rules = new IEligibilityRule[]
         {
             new MinimumIncomeRule(),
             new AmountWithinLimitRule(),
             new TermWithinRangeRule()
         };
-        var sut = new EligibilityProcessor(dbFactory, timeProvider, rules);
+        var sut = new EligibilityProcessor(dbFactory, timeProvider, busFactory, rules);
         return (sut, dbFactory);
     }
 

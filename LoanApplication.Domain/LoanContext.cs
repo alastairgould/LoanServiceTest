@@ -6,6 +6,7 @@ public class LoanContext : DbContext
 {
    public DbSet<LoanApplication> LoanApplications { get; set; }
    public DbSet<DecisionLogEntry> DecisionLogEntries { get; set; }
+   public DbSet<OutboxMessage> OutboxMessages { get; set; }
    
    public string DbPath { get; }
 
@@ -29,5 +30,8 @@ public class LoanContext : DbContext
            .HasOne<LoanApplication>()
            .WithMany()
            .HasForeignKey(e => e.LoanApplicationId);
+
+       modelBuilder.Entity<OutboxMessage>()
+           .HasIndex(e => e.PublishedAt);
    }
 }

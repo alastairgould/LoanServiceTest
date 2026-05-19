@@ -1,3 +1,4 @@
+using EligibilityService.Messaging;
 using EligibilityService.Rules;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -11,6 +12,7 @@ public static class EligibilityServiceCollectionExtensions
         services.AddSingleton<IEligibilityRule, MinimumIncomeRule>();
         services.AddSingleton<IEligibilityRule, AmountWithinLimitRule>();
         services.AddSingleton<IEligibilityRule, TermWithinRangeRule>();
+        services.AddSingleton<IMessageBusFactory, OutboxMessageBusFactory>();
         services.AddHostedService<EligibilityWorker>();
         return services;
     }
