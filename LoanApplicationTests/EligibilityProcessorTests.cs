@@ -245,14 +245,14 @@ public class EligibilityProcessorTests
             init.Database.EnsureCreated();
 
         var dbFactory = new TestLoanContextFactory(options);
-        var busFactory = new OutboxMessageBusFactory(timeProvider);
+        var publisherFactory = new OutboxEventPublisherFactory(timeProvider);
         var rules = new IEligibilityRule[]
         {
             new MinimumIncomeRule(),
             new AmountWithinLimitRule(),
             new TermWithinRangeRule()
         };
-        var sut = new EligibilityProcessor(dbFactory, timeProvider, busFactory, rules);
+        var sut = new EligibilityProcessor(dbFactory, timeProvider, publisherFactory, rules);
         return (sut, dbFactory);
     }
 

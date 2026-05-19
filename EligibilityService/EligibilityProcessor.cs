@@ -9,13 +9,13 @@ namespace EligibilityService;
 public class EligibilityProcessor(
     IDbContextFactory<LoanContext> contextFactory,
     TimeProvider timeProvider,
-    IMessageBusFactory busFactory,
+    IEventPublisherFactory publisherFactory,
     IEnumerable<IEligibilityRule> rules)
 {
     public async Task ProcessAsync(CancellationToken cancellationToken)
     {
         await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
-        var bus = busFactory.CreateFor(context);
+        var eventPublisher = publisherFactory.CreateFor(context);
 
         var pending = await context.LoanApplications
             .AsNoTracking()
@@ -46,7 +46,7 @@ public class EligibilityProcessor(
                 ? new LoanApproved(loan.Id, now)
                 : new LoanRejected(loan.Id, now);
             
-            await bus.PublishAsync(@event, cancellationToken);
+            await eventPublisher.PublishAsync(@event, cancellationToken);
         }
 
         await context.SaveChangesAsync(cancellationToken);

@@ -4,7 +4,7 @@ using LoanApplication.Domain.Events;
 
 namespace EligibilityService.Messaging;
 
-internal sealed class OutboxMessageBus(LoanContext context, TimeProvider timeProvider) : IMessageBus
+internal sealed class OutboxEventPublisher(LoanContext context, TimeProvider timeProvider) : IEventPublisher
 {
     public Task PublishAsync(IEvent @event, CancellationToken cancellationToken = default)
     {

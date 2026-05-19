@@ -12,7 +12,7 @@ public static class EligibilityServiceCollectionExtensions
         services.AddSingleton<IEligibilityRule, MinimumIncomeRule>();
         services.AddSingleton<IEligibilityRule, AmountWithinLimitRule>();
         services.AddSingleton<IEligibilityRule, TermWithinRangeRule>();
-        services.AddSingleton<IMessageBusFactory, OutboxMessageBusFactory>();
+        services.AddSingleton<IEventPublisherFactory, OutboxEventPublisherFactory>();
         services.AddHostedService<EligibilityWorker>();
         return services;
     }
