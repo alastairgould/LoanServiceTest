@@ -1,6 +1,6 @@
 using LoanApplication.Domain.Events;
 
-namespace EligibilityService.Messaging;
+namespace EligibilityService.Infrastructure.Messaging;
 
 public interface IEventPublisher
 {

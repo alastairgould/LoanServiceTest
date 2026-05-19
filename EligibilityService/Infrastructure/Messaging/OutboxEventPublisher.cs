@@ -2,7 +2,7 @@ using System.Text.Json;
 using LoanApplication.Domain;
 using LoanApplication.Domain.Events;
 
-namespace EligibilityService.Messaging;
+namespace EligibilityService.Infrastructure.Messaging;
 
 internal sealed class OutboxEventPublisher(LoanContext context, TimeProvider timeProvider) : IEventPublisher
 {

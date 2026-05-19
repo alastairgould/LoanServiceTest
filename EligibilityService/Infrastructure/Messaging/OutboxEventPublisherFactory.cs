@@ -1,6 +1,6 @@
 using LoanApplication.Domain;
 
-namespace EligibilityService.Messaging;
+namespace EligibilityService.Infrastructure.Messaging;
 
 public sealed class OutboxEventPublisherFactory(TimeProvider timeProvider) : IEventPublisherFactory
 {

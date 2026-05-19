@@ -1,5 +1,6 @@
-using EligibilityService.Messaging;
-using EligibilityService.Rules;
+using EligibilityService.Features.LoanEligibility;
+using EligibilityService.Infrastructure.BackgroundService;
+using EligibilityService.Infrastructure.Messaging;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace EligibilityService;
@@ -8,12 +9,9 @@ public static class EligibilityServiceCollectionExtensions
 {
     public static IServiceCollection AddEligibilityService(this IServiceCollection services)
     {
-        services.AddSingleton<EligibilityProcessor>();
-        services.AddSingleton<IEligibilityRule, MinimumIncomeRule>();
-        services.AddSingleton<IEligibilityRule, AmountWithinLimitRule>();
-        services.AddSingleton<IEligibilityRule, TermWithinRangeRule>();
-        services.AddSingleton<IEventPublisherFactory, OutboxEventPublisherFactory>();
-        services.AddHostedService<EligibilityWorker>();
+        services.AddLoanEligibility();
+        services.AddMessaging();
+        services.AddBackgroundProcessing();
         return services;
     }
 }

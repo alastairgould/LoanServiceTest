@@ -1,11 +1,11 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace EligibilityService;
+namespace EligibilityService.Infrastructure.BackgroundService;
 
 public class EligibilityWorker(
-    EligibilityProcessor processor,
-    ILogger<EligibilityWorker> logger) : BackgroundService
+    EligibilityProcessorFactory processorFactory,
+    ILogger<EligibilityWorker> logger) : Microsoft.Extensions.Hosting.BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(60);
 
@@ -17,6 +17,7 @@ public class EligibilityWorker(
         {
             try
             {
+                await using var processor = await processorFactory.CreateAsync(stoppingToken);
                 await processor.ProcessAsync(stoppingToken);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)

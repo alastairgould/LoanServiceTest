@@ -1,6 +1,6 @@
 using LoanEntity = LoanApplication.Domain.LoanApplication;
 
-namespace EligibilityService.Rules;
+namespace EligibilityService.Features.LoanEligibility.Rules;
 
 public class MinimumIncomeRule : IEligibilityRule
 {
