@@ -32,8 +32,8 @@ public class EligibilityProcessorTests
 
         await sut.ProcessAsync(CancellationToken.None);
 
-        await using var assertDb = await dbFactory.CreateDbContextAsync();
-        var loan = assertDb.LoanApplications.Single(la => la.Id == loanId);
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var loan = db.LoanApplications.Single(la => la.Id == loanId);
         loan.Status.ShouldBe(LoanStatus.Approved);
         loan.ReviewedAt.ShouldBe(currentTime.UtcDateTime);
     }
@@ -48,15 +48,15 @@ public class EligibilityProcessorTests
 
         await sut.ProcessAsync(CancellationToken.None);
 
-        await using var assertDb = await dbFactory.CreateDbContextAsync();
-        assertDb.LoanApplications.Single(la => la.Id == loanId).Status.ShouldBe(LoanStatus.Rejected);
+        await using var db = await dbFactory.CreateDbContextAsync();
+        db.LoanApplications.Single(la => la.Id == loanId).Status.ShouldBe(LoanStatus.Rejected);
 
-        var entry = assertDb.DecisionLogEntries.Single(d => d.LoanApplicationId == loanId && !d.Passed);
+        var entry = db.DecisionLogEntries.Single(d => d.LoanApplicationId == loanId && !d.Passed);
         entry.RuleName.ShouldBe("MinimumIncome");
         entry.Passed.ShouldBeFalse();
         entry.Message.ShouldBe("Monthly income must be at least £2,000");
 
-        var passedEntries = assertDb.DecisionLogEntries.Where(d => d.LoanApplicationId == loanId && d.Passed).ToList();
+        var passedEntries = db.DecisionLogEntries.Where(d => d.LoanApplicationId == loanId && d.Passed).ToList();
         passedEntries.Count.ShouldBe(2);
         passedEntries.ShouldAllBe(e => e.Message == "Passed Eligibility Rule");
     }
@@ -71,10 +71,10 @@ public class EligibilityProcessorTests
 
         await sut.ProcessAsync(CancellationToken.None);
 
-        await using var assertDb = await dbFactory.CreateDbContextAsync();
-        assertDb.LoanApplications.Single(la => la.Id == loanId).Status.ShouldBe(LoanStatus.Rejected);
+        await using var db = await dbFactory.CreateDbContextAsync();
+        db.LoanApplications.Single(la => la.Id == loanId).Status.ShouldBe(LoanStatus.Rejected);
 
-        var entry = assertDb.DecisionLogEntries.Single(d => d.LoanApplicationId == loanId && !d.Passed);
+        var entry = db.DecisionLogEntries.Single(d => d.LoanApplicationId == loanId && !d.Passed);
         entry.RuleName.ShouldBe("AmountWithinLimit");
         entry.Passed.ShouldBeFalse();
         entry.Message.ShouldBe("Requested amount must be no more than monthly income multiplied by 4");
@@ -90,10 +90,10 @@ public class EligibilityProcessorTests
 
         await sut.ProcessAsync(CancellationToken.None);
 
-        await using var assertDb = await dbFactory.CreateDbContextAsync();
-        assertDb.LoanApplications.Single(la => la.Id == loanId).Status.ShouldBe(LoanStatus.Rejected);
+        await using var db = await dbFactory.CreateDbContextAsync();
+        db.LoanApplications.Single(la => la.Id == loanId).Status.ShouldBe(LoanStatus.Rejected);
 
-        var entry = assertDb.DecisionLogEntries.Single(d => d.LoanApplicationId == loanId && !d.Passed);
+        var entry = db.DecisionLogEntries.Single(d => d.LoanApplicationId == loanId && !d.Passed);
         entry.RuleName.ShouldBe("TermWithinRange");
         entry.Passed.ShouldBeFalse();
         entry.Message.ShouldBe("Term must be between 12 and 60 months");
@@ -109,10 +109,10 @@ public class EligibilityProcessorTests
 
         await sut.ProcessAsync(CancellationToken.None);
 
-        await using var assertDb = await dbFactory.CreateDbContextAsync();
-        assertDb.LoanApplications.Single(la => la.Id == loanId).Status.ShouldBe(LoanStatus.Rejected);
+        await using var db = await dbFactory.CreateDbContextAsync();
+        db.LoanApplications.Single(la => la.Id == loanId).Status.ShouldBe(LoanStatus.Rejected);
 
-        var entry = assertDb.DecisionLogEntries.Single(d => d.LoanApplicationId == loanId && !d.Passed);
+        var entry = db.DecisionLogEntries.Single(d => d.LoanApplicationId == loanId && !d.Passed);
         entry.RuleName.ShouldBe("TermWithinRange");
         entry.Passed.ShouldBeFalse();
         entry.Message.ShouldBe("Term must be between 12 and 60 months");
@@ -130,12 +130,12 @@ public class EligibilityProcessorTests
 
         await sut.ProcessAsync(CancellationToken.None);
 
-        await using var assertDb = await dbFactory.CreateDbContextAsync();
-        var loan = assertDb.LoanApplications.Single(la => la.Id == loanId);
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var loan = db.LoanApplications.Single(la => la.Id == loanId);
         loan.Status.ShouldBe(LoanStatus.Approved);
         loan.ReviewedAt.ShouldBe(originalReviewedAt);
-        assertDb.DecisionLogEntries.Count(d => d.LoanApplicationId == loanId).ShouldBe(0);
-        assertDb.OutboxMessages.Count().ShouldBe(0);
+        db.DecisionLogEntries.Count(d => d.LoanApplicationId == loanId).ShouldBe(0);
+        db.OutboxMessages.Count().ShouldBe(0);
     }
 
     [Fact]
@@ -149,8 +149,8 @@ public class EligibilityProcessorTests
 
         await sut.ProcessAsync(CancellationToken.None);
 
-        await using var assertDb = await dbFactory.CreateDbContextAsync();
-        var outbox = assertDb.OutboxMessages.Single();
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var outbox = db.OutboxMessages.Single();
         outbox.Type.ShouldBe(nameof(LoanApproved));
         outbox.OccurredAt.ShouldBe(currentTime.UtcDateTime);
         outbox.PublishedAt.ShouldBeNull();
@@ -172,8 +172,8 @@ public class EligibilityProcessorTests
 
         await sut.ProcessAsync(CancellationToken.None);
 
-        await using var assertDb = await dbFactory.CreateDbContextAsync();
-        var outbox = assertDb.OutboxMessages.Single();
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var outbox = db.OutboxMessages.Single();
         outbox.Type.ShouldBe(nameof(LoanRejected));
         outbox.OccurredAt.ShouldBe(currentTime.UtcDateTime);
         outbox.PublishedAt.ShouldBeNull();
@@ -195,8 +195,8 @@ public class EligibilityProcessorTests
 
         await sut.ProcessAsync(CancellationToken.None);
 
-        await using var assertDb = await dbFactory.CreateDbContextAsync();
-        var entries = assertDb.DecisionLogEntries.Where(d => d.LoanApplicationId == loanId).ToList();
+        await using var db = await dbFactory.CreateDbContextAsync();
+        var entries = db.DecisionLogEntries.Where(d => d.LoanApplicationId == loanId).ToList();
         entries.Count.ShouldBe(3);
         entries.ShouldAllBe(e => e.Passed);
         entries.ShouldAllBe(e => e.EvaluatedAt == currentTime.UtcDateTime);
