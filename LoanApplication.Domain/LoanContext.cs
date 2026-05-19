@@ -32,6 +32,7 @@ public class LoanContext : DbContext
            .HasForeignKey(e => e.LoanApplicationId);
 
        modelBuilder.Entity<OutboxMessage>()
-           .HasIndex(e => e.PublishedAt);
+           .HasIndex(e => e.OccurredAt)
+           .HasFilter("PublishedAt IS NULL");
    }
 }

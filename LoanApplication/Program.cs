@@ -3,6 +3,7 @@ using LoanApplication.Domain;
 using LoanApplication.Features.ApplyForLoan;
 using LoanApplication.Features.RetrieveLoanApplication;
 using Microsoft.EntityFrameworkCore;
+using OutboxPublisherService;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +17,7 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddApplyForLoan();
 builder.Services.AddRetrieveLoanApplication();
 builder.Services.AddEligibilityService();
+builder.Services.AddOutboxPublisherService();
 
 var app = builder.Build();
 
