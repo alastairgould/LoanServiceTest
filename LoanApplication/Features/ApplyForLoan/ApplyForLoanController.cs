@@ -32,6 +32,7 @@ public class ApplyForLoanController(
 
         loanContext.LoanApplications.Add(loan);
         loanContext.SaveChanges();
-        return Ok(new LoanApplicationResult(loan.Id, loan.Status, loan.CreatedAt));
+        var result = new LoanApplicationResult(loan.Id, loan.Status, loan.CreatedAt);
+        return Created($"/loan-applications/{loan.Id}", result);
     }
 }
