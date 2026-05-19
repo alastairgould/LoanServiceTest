@@ -1,11 +1,14 @@
 using LoanApplication.Features.ApplyForLoan;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+builder.Services.AddDbContext<LoanContext>(options => options.UseSqlite("Data Source=loan-application.db"));
+builder.Services.AddSingleton(TimeProvider.System);
 
 var app = builder.Build();
 
@@ -17,9 +20,27 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.MapPost("/loan-applications", ([FromServices] TimeProvider timeProvider) =>
+app.MapPost("/loan-applications", (
+        [FromBody] LoanApplicationRequest request,
+        [FromServices] LoanContext loanContext,
+        [FromServices] TimeProvider timeProvider) =>
     {
-        return Results.Ok(new LoanApplicationResult(Guid.NewGuid(), LoanStatus.Pending, timeProvider.GetUtcNow().UtcDateTime));
+        var id = Guid.NewGuid();
+        var createdAt = timeProvider.GetUtcNow().UtcDateTime;
+
+        loanContext.LoanApplications.Add(new LoanApplication.Features.ApplyForLoan.LoanApplication(
+            id,
+            request.Name,
+            request.Email,
+            (int)request.MonthlyIncome,
+            request.Amount,
+            request.TermMonths,
+            "Pending",
+            createdAt,
+            null));
+
+        loanContext.SaveChanges();
+        return Results.Ok(new LoanApplicationResult(id, LoanStatus.Pending, createdAt));
     })
     .WithName("PostLoanApplication");
 
