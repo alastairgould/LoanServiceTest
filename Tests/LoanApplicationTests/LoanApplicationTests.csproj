@@ -23,9 +23,9 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\LoanApplication\LoanApplication.csproj" />
-      <ProjectReference Include="..\EligibilityService\EligibilityService.csproj" />
-      <ProjectReference Include="..\OutboxPublisherService\OutboxPublisherService.csproj" />
+      <ProjectReference Include="..\..\LoanApplication\LoanApplication.csproj" />
+      <ProjectReference Include="..\..\EligibilityService\EligibilityService.csproj" />
+      <ProjectReference Include="..\..\OutboxPublisherService\OutboxPublisherService.csproj" />
     </ItemGroup>
 
 </Project>
