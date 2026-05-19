@@ -18,6 +18,12 @@ public class CustomWebApplicationFactory<TProgram>
     {
         _connection = new SqliteConnection("DataSource=:memory:");
         _connection.Open();
+
+        var options = new DbContextOptionsBuilder<LoanContext>()
+            .UseSqlite(_connection)
+            .Options;
+        using var context = new LoanContext(options);
+        context.Database.EnsureCreated();
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)

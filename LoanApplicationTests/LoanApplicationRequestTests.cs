@@ -16,10 +16,6 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
     [Fact]
     public async Task LoanApplicationReturnsPending_WhenLoanApplicationPosted()
     {
-        await using var context = _factory.Services.CreateAsyncScope();
-        var db = context.ServiceProvider.GetRequiredService<LoanContext>();
-        await db.Database.EnsureCreatedAsync();
-        
         var currentTime = new DateTimeOffset(2026, 4, 5, 13, 30, 30, TimeSpan.Zero);
         var fakeTimeProvider = new FakeTimeProvider();
         fakeTimeProvider.AdjustTime(currentTime);
@@ -37,20 +33,28 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
     [Fact]
     public async Task LoanApplicationSaved_WhenLoanApplicationPosted()
     {
-        await using var context = _factory.Services.CreateAsyncScope();
-        
-        var db = context.ServiceProvider.GetRequiredService<LoanContext>();
-        await db.Database.EnsureCreatedAsync();
-        
         var currentTime = new DateTimeOffset(2026, 4, 5, 13, 30, 30, TimeSpan.Zero);
         var fakeTimeProvider = new FakeTimeProvider();
         fakeTimeProvider.AdjustTime(currentTime);
 
         var client = CreateApi(fakeTimeProvider);
         using var request = CreateLoanRequest();
-        await client.PostAsync("/loan-applications", request);
+        var response = await client.PostAsync("/loan-applications", request);
+        var result = await response.Content.ReadFromJsonAsync<LoanApplicationResult>();
 
-        db.LoanApplications.Count().ShouldBe(1);
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<LoanContext>();
+        var saved = db.LoanApplications.Single();
+
+        saved.Id.ShouldBe(result!.Id);
+        saved.Name.ShouldBe("John");
+        saved.Email.ShouldBe("john@gmail.com");
+        saved.MonthlyIncome.ShouldBe(10000);
+        saved.RequestedAmount.ShouldBe(10000m);
+        saved.TermMonths.ShouldBe(12);
+        saved.Status.ShouldBe("Pending");
+        saved.CreatedAt.ShouldBe(currentTime.UtcDateTime);
+        saved.ReviewedAt.ShouldBeNull();
     }
 
     private static StringContent CreateLoanRequest(string name = "John")
