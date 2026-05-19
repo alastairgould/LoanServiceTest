@@ -10,7 +10,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 builder.Services.AddControllers();
-builder.Services.AddDbContext<LoanContext>(options => options.UseSqlite("Data Source=loan-application.db"));
+builder.Services.AddDbContextFactory<LoanContext>(options => options.UseSqlite("Data Source=loan-application.db"));
+builder.Services.AddScoped(sp => sp.GetRequiredService<IDbContextFactory<LoanContext>>().CreateDbContext());
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddApplyForLoan();
 builder.Services.AddRetrieveLoanApplication();

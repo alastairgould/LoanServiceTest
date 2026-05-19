@@ -24,6 +24,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\LoanApplication\LoanApplication.csproj" />
+      <ProjectReference Include="..\EligibilityService\EligibilityService.csproj" />
     </ItemGroup>
 
 </Project>

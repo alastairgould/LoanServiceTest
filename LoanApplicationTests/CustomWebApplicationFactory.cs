@@ -30,25 +30,27 @@ public class CustomWebApplicationFactory<TProgram>
     {
         builder.ConfigureServices(services =>
         {
-            var dbContextDescriptor = services.SingleOrDefault(
-                d => d.ServiceType ==
-                     typeof(IDbContextOptionsConfiguration<LoanContext>));
-            if (dbContextDescriptor is not null)
-                services.Remove(dbContextDescriptor);
-
-            var loanContext = services.SingleOrDefault(
-                d => d.ServiceType ==
-                     typeof(LoanContext));
-            if (loanContext is not null)
-                services.Remove(loanContext);
+            var toRemove = services
+                .Where(d =>
+                    d.ServiceType == typeof(IDbContextOptionsConfiguration<LoanContext>) ||
+                    d.ServiceType == typeof(DbContextOptions<LoanContext>) ||
+                    d.ServiceType == typeof(IDbContextFactory<LoanContext>) ||
+                    d.ServiceType == typeof(LoanContext))
+                .ToList();
+            
+            foreach (var descriptor in toRemove)
+            {
+                services.Remove(descriptor);
+            }
 
             services.AddSingleton<DbConnection>(_connection);
 
-            services.AddDbContext<LoanContext>((container, options) =>
+            services.AddDbContextFactory<LoanContext>((container, options) =>
             {
                 var connection = container.GetRequiredService<DbConnection>();
                 options.UseSqlite(connection);
             });
+            services.AddScoped(sp => sp.GetRequiredService<IDbContextFactory<LoanContext>>().CreateDbContext());
         });
 
         builder.UseEnvironment("Development");
