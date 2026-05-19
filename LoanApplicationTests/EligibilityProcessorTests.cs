@@ -45,6 +45,11 @@ public class EligibilityProcessorTests
 
         await using var assertDb = await dbFactory.CreateDbContextAsync();
         assertDb.LoanApplications.Single(la => la.Id == loanId).Status.ShouldBe(LoanStatus.Rejected);
+
+        var entry = assertDb.DecisionLogEntries.Single(d => d.LoanApplicationId == loanId && !d.Passed);
+        entry.RuleName.ShouldBe("MinimumIncome");
+        entry.Passed.ShouldBeFalse();
+        entry.Message.ShouldBe("Monthly income must be at least £2,000");
     }
 
     [Fact]
@@ -59,6 +64,11 @@ public class EligibilityProcessorTests
 
         await using var assertDb = await dbFactory.CreateDbContextAsync();
         assertDb.LoanApplications.Single(la => la.Id == loanId).Status.ShouldBe(LoanStatus.Rejected);
+
+        var entry = assertDb.DecisionLogEntries.Single(d => d.LoanApplicationId == loanId && !d.Passed);
+        entry.RuleName.ShouldBe("AmountWithinLimit");
+        entry.Passed.ShouldBeFalse();
+        entry.Message.ShouldBe("Requested amount must be no more than monthly income multiplied by 4");
     }
 
     [Fact]
@@ -73,6 +83,11 @@ public class EligibilityProcessorTests
 
         await using var assertDb = await dbFactory.CreateDbContextAsync();
         assertDb.LoanApplications.Single(la => la.Id == loanId).Status.ShouldBe(LoanStatus.Rejected);
+
+        var entry = assertDb.DecisionLogEntries.Single(d => d.LoanApplicationId == loanId && !d.Passed);
+        entry.RuleName.ShouldBe("TermWithinRange");
+        entry.Passed.ShouldBeFalse();
+        entry.Message.ShouldBe("Term must be between 12 and 60 months");
     }
 
     [Fact]
@@ -87,6 +102,11 @@ public class EligibilityProcessorTests
 
         await using var assertDb = await dbFactory.CreateDbContextAsync();
         assertDb.LoanApplications.Single(la => la.Id == loanId).Status.ShouldBe(LoanStatus.Rejected);
+
+        var entry = assertDb.DecisionLogEntries.Single(d => d.LoanApplicationId == loanId && !d.Passed);
+        entry.RuleName.ShouldBe("TermWithinRange");
+        entry.Passed.ShouldBeFalse();
+        entry.Message.ShouldBe("Term must be between 12 and 60 months");
     }
 
     [Fact]
@@ -124,6 +144,10 @@ public class EligibilityProcessorTests
         entries.Count.ShouldBe(3);
         entries.ShouldAllBe(e => e.Passed);
         entries.ShouldAllBe(e => e.EvaluatedAt == currentTime.UtcDateTime);
+
+        entries.Single(e => e.RuleName == "MinimumIncome").Message.ShouldBe("Monthly income must be at least £2,000");
+        entries.Single(e => e.RuleName == "AmountWithinLimit").Message.ShouldBe("Requested amount must be no more than monthly income multiplied by 4");
+        entries.Single(e => e.RuleName == "TermWithinRange").Message.ShouldBe("Term must be between 12 and 60 months");
     }
 
     private static FakeTimeProvider CreateTimeProvider(DateTimeOffset? currentTime = null)

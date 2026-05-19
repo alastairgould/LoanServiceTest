@@ -1,5 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
-
 namespace LoanApplication.Features.RetrieveLoanApplication;
 
 public static class RetrieveLoanApplicationServiceCollectionExtensions
