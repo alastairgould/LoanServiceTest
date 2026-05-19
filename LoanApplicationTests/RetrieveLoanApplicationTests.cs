@@ -38,7 +38,7 @@ public class RetrieveLoanApplicationTests : IClassFixture<CustomWebApplicationFa
         details.MonthlyIncome.ShouldBe(10000);
         details.RequestedAmount.ShouldBe(10000m);
         details.TermMonths.ShouldBe(12);
-        details.Status.ShouldBe("Pending");
+        details.Status.ShouldBe(LoanStatus.Pending);
         details.CreatedAt.ShouldBe(currentTime.UtcDateTime);
         details.ReviewedAt.ShouldBeNull();
     }

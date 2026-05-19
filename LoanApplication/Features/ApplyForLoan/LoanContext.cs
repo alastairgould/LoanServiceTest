@@ -15,4 +15,11 @@ public class LoanContext : DbContext
        var path = Environment.GetFolderPath(folder);
        DbPath = System.IO.Path.Join(path, "loans.db");
    }
+
+   protected override void OnModelCreating(ModelBuilder modelBuilder)
+   {
+       modelBuilder.Entity<LoanApplication>()
+           .Property(e => e.Status)
+           .HasConversion<string>();
+   }
 }

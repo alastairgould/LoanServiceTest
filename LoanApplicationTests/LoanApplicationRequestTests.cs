@@ -54,7 +54,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
         saved.MonthlyIncome.ShouldBe(10000);
         saved.RequestedAmount.ShouldBe(10000m);
         saved.TermMonths.ShouldBe(12);
-        saved.Status.ShouldBe("Pending");
+        saved.Status.ShouldBe(LoanStatus.Pending);
         saved.CreatedAt.ShouldBe(currentTime.UtcDateTime);
         saved.ReviewedAt.ShouldBeNull();
     }

@@ -1,3 +1,5 @@
+using LoanApplication.Features.ApplyForLoan;
+
 namespace LoanApplication.Features.RetrieveLoanApplication;
 
 public record LoanApplicationDetails(
@@ -7,6 +9,6 @@ public record LoanApplicationDetails(
     int MonthlyIncome,
     decimal RequestedAmount,
     int TermMonths,
-    string Status,
+    LoanStatus Status,
     DateTime CreatedAt,
     DateTime? ReviewedAt);

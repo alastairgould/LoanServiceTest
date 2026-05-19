@@ -35,12 +35,12 @@ public class ApplyForLoanController : ControllerBase
             (int)request.MonthlyIncome,
             request.Amount,
             request.TermMonths,
-            "Pending",
+            LoanStatus.Pending,
             _timeProvider.GetUtcNow().UtcDateTime,
             null);
 
         _loanContext.LoanApplications.Add(loan);
         _loanContext.SaveChanges();
-        return Ok(new LoanApplicationResult(loan.Id, LoanStatus.Pending, loan.CreatedAt));
+        return Ok(new LoanApplicationResult(loan.Id, loan.Status, loan.CreatedAt));
     }
 }
