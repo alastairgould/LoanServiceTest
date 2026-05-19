@@ -1,3 +1,4 @@
+using LoanApplication.Domain;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LoanApplication.Features.ApplyForLoan;
@@ -18,7 +19,7 @@ public class ApplyForLoanController(
         if (errors.Count > 0)
             return ValidationProblem(new ValidationProblemDetails(errors));
 
-        var loan = new LoanApplication(
+        var loan = new Domain.LoanApplication(
             Guid.NewGuid(),
             request.Name,
             request.Email,

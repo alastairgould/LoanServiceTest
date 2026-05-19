@@ -1,5 +1,5 @@
 using System.Data.Common;
-using LoanApplication.Features.ApplyForLoan;
+using LoanApplication.Domain;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;

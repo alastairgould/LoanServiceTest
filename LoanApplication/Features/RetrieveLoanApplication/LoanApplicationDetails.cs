@@ -1,4 +1,4 @@
-using LoanApplication.Features.ApplyForLoan;
+using LoanApplication.Domain;
 
 namespace LoanApplication.Features.RetrieveLoanApplication;
 

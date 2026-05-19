@@ -1,4 +1,4 @@
-using LoanApplication.Features.ApplyForLoan;
+using LoanApplication.Domain;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LoanApplication.Features.RetrieveLoanApplication;

@@ -1,3 +1,4 @@
+using LoanApplication.Domain;
 using LoanApplication.Features.ApplyForLoan;
 using LoanApplication.Features.RetrieveLoanApplication;
 using Microsoft.EntityFrameworkCore;

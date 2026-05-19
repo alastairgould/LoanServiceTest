@@ -2,6 +2,7 @@
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using LoanApplication.Domain;
 using LoanApplication.Features.ApplyForLoan;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
