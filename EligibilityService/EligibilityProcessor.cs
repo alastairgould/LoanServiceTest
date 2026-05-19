@@ -30,7 +30,8 @@ public class EligibilityProcessor(
 
             foreach (var (name, passed, message) in results)
             {
-                context.DecisionLogEntries.Add(new DecisionLogEntry(Guid.NewGuid(), loan.Id, name, passed, message, now));
+                var logMessage = passed ? "Passed Eligibility Rule" : message;
+                context.DecisionLogEntries.Add(new DecisionLogEntry(Guid.NewGuid(), loan.Id, name, passed, logMessage, now));
             }
 
             var newStatus = results.All(r => r.Passed) ? LoanStatus.Approved : LoanStatus.Rejected;

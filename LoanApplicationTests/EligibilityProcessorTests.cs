@@ -36,7 +36,7 @@ public class EligibilityProcessorTests
     [Fact]
     public async Task RejectsLoan_WhenMonthlyIncomeTooLow()
     {
-        var (sut, dbFactory) = CreateEligibilityService(CreateTimeProvider());
+        var (sut, dbFactory) = CreateEligibilityService();
 
         var loanId = Guid.NewGuid();
         await SeedLoan(dbFactory, loanId, monthlyIncome: 1999, requestedAmount: 1000m, termMonths: 24);
@@ -55,7 +55,7 @@ public class EligibilityProcessorTests
     [Fact]
     public async Task RejectsLoan_WhenRequestedAmountExceedsFourTimesIncome()
     {
-        var (sut, dbFactory) = CreateEligibilityService(CreateTimeProvider());
+        var (sut, dbFactory) = CreateEligibilityService();
 
         var loanId = Guid.NewGuid();
         await SeedLoan(dbFactory, loanId, monthlyIncome: 3000, requestedAmount: 12001m, termMonths: 24);
@@ -74,7 +74,7 @@ public class EligibilityProcessorTests
     [Fact]
     public async Task RejectsLoan_WhenTermBelowMinimum()
     {
-        var (sut, dbFactory) = CreateEligibilityService(CreateTimeProvider());
+        var (sut, dbFactory) = CreateEligibilityService();
 
         var loanId = Guid.NewGuid();
         await SeedLoan(dbFactory, loanId, monthlyIncome: 3000, requestedAmount: 5000m, termMonths: 11);
@@ -93,7 +93,7 @@ public class EligibilityProcessorTests
     [Fact]
     public async Task RejectsLoan_WhenTermAboveMaximum()
     {
-        var (sut, dbFactory) = CreateEligibilityService(CreateTimeProvider());
+        var (sut, dbFactory) = CreateEligibilityService();
 
         var loanId = Guid.NewGuid();
         await SeedLoan(dbFactory, loanId, monthlyIncome: 3000, requestedAmount: 5000m, termMonths: 61);
@@ -112,7 +112,7 @@ public class EligibilityProcessorTests
     [Fact]
     public async Task DoesNotProcessLoan_WhenAlreadyReviewed()
     {
-        var (sut, dbFactory) = CreateEligibilityService(CreateTimeProvider());
+        var (sut, dbFactory) = CreateEligibilityService();
 
         var loanId = Guid.NewGuid();
         var originalReviewedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -145,9 +145,8 @@ public class EligibilityProcessorTests
         entries.ShouldAllBe(e => e.Passed);
         entries.ShouldAllBe(e => e.EvaluatedAt == currentTime.UtcDateTime);
 
-        entries.Single(e => e.RuleName == "MinimumIncome").Message.ShouldBe("Monthly income must be at least £2,000");
-        entries.Single(e => e.RuleName == "AmountWithinLimit").Message.ShouldBe("Requested amount must be no more than monthly income multiplied by 4");
-        entries.Single(e => e.RuleName == "TermWithinRange").Message.ShouldBe("Term must be between 12 and 60 months");
+        entries.ShouldAllBe(e => e.Message == "Passed Eligibility Rule");
+        entries.Select(e => e.RuleName).ShouldBe(["MinimumIncome", "AmountWithinLimit", "TermWithinRange"], ignoreOrder: true);
     }
 
     private static FakeTimeProvider CreateTimeProvider(DateTimeOffset? currentTime = null)
@@ -178,8 +177,10 @@ public class EligibilityProcessorTests
         await db.SaveChangesAsync();
     }
 
-    private static (EligibilityProcessor Sut, IDbContextFactory<LoanContext> DbFactory) CreateEligibilityService(TimeProvider timeProvider)
+    private static (EligibilityProcessor Sut, IDbContextFactory<LoanContext> DbFactory) CreateEligibilityService(TimeProvider? timeProvider = null)
     {
+        timeProvider ??= CreateTimeProvider();
+
         var connection = new SqliteConnection("DataSource=:memory:");
         connection.Open();
         var options = new DbContextOptionsBuilder<LoanContext>()
