@@ -50,6 +50,10 @@ public class EligibilityProcessorTests
         entry.RuleName.ShouldBe("MinimumIncome");
         entry.Passed.ShouldBeFalse();
         entry.Message.ShouldBe("Monthly income must be at least £2,000");
+
+        var passedEntries = assertDb.DecisionLogEntries.Where(d => d.LoanApplicationId == loanId && d.Passed).ToList();
+        passedEntries.Count.ShouldBe(2);
+        passedEntries.ShouldAllBe(e => e.Message == "Passed Eligibility Rule");
     }
 
     [Fact]

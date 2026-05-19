@@ -11,29 +11,19 @@ public class EligibilityWorker(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        while (!stoppingToken.IsCancellationRequested)
+        using var timer = new PeriodicTimer(Interval);
+
+        do
         {
             try
             {
                 await processor.ProcessAsync(stoppingToken);
             }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 logger.LogError(ex, "Eligibility processing iteration failed");
             }
-
-            try
-            {
-                await Task.Delay(Interval, stoppingToken);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
         }
+        while (await timer.WaitForNextTickAsync(stoppingToken));
     }
 }
