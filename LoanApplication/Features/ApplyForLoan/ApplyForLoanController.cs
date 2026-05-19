@@ -4,26 +4,16 @@ namespace LoanApplication.Features.ApplyForLoan;
 
 [ApiController]
 [Route("loan-applications")]
-public class ApplyForLoanController : ControllerBase
+public class ApplyForLoanController(
+    LoanContext loanContext,
+    TimeProvider timeProvider,
+    LoanApplicationRequestValidator validator)
+    : ControllerBase
 {
-    private readonly LoanContext _loanContext;
-    private readonly TimeProvider _timeProvider;
-    private readonly LoanApplicationRequestValidator _validator;
-
-    public ApplyForLoanController(
-        LoanContext loanContext,
-        TimeProvider timeProvider,
-        LoanApplicationRequestValidator validator)
-    {
-        _loanContext = loanContext;
-        _timeProvider = timeProvider;
-        _validator = validator;
-    }
-
     [HttpPost]
     public IActionResult Apply([FromBody] LoanApplicationRequest request)
     {
-        var errors = _validator.Validate(request);
+        var errors = validator.Validate(request);
 
         if (errors.Count > 0)
             return ValidationProblem(new ValidationProblemDetails(errors));
@@ -36,11 +26,11 @@ public class ApplyForLoanController : ControllerBase
             request.Amount,
             request.TermMonths,
             LoanStatus.Pending,
-            _timeProvider.GetUtcNow().UtcDateTime,
+            timeProvider.GetUtcNow().UtcDateTime,
             null);
 
-        _loanContext.LoanApplications.Add(loan);
-        _loanContext.SaveChanges();
+        loanContext.LoanApplications.Add(loan);
+        loanContext.SaveChanges();
         return Ok(new LoanApplicationResult(loan.Id, loan.Status, loan.CreatedAt));
     }
 }

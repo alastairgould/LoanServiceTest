@@ -5,19 +5,12 @@ namespace LoanApplication.Features.RetrieveLoanApplication;
 
 [ApiController]
 [Route("loan-applications")]
-public class RetrieveLoanApplicationController : ControllerBase
+public class RetrieveLoanApplicationController(LoanContext loanContext) : ControllerBase
 {
-    private readonly LoanContext _loanContext;
-
-    public RetrieveLoanApplicationController(LoanContext loanContext)
-    {
-        _loanContext = loanContext;
-    }
-
     [HttpGet("{id:guid}")]
     public IActionResult Retrieve(Guid id)
     {
-        var application = _loanContext.LoanApplications.Find(id);
+        var application = loanContext.LoanApplications.Find(id);
         
         if (application is null)
             return NotFound();
