@@ -73,7 +73,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
-        problem!.Errors.ShouldContainKey("Name");
+        problem!.Errors["Name"].ShouldBe(["Name is required."]);
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
-        problem!.Errors.ShouldContainKey("Name");
+        problem!.Errors["Name"].ShouldBe(["Name is required."]);
     }
 
     [Fact]
@@ -107,7 +107,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
-        problem!.Errors.ShouldContainKey("Email");
+        problem!.Errors["Email"].ShouldBe(["A valid email is required."]);
     }
 
     [Fact]
@@ -124,7 +124,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
-        problem!.Errors.ShouldContainKey("Email");
+        problem!.Errors["Email"].ShouldBe(["A valid email is required."]);
     }
 
     [Fact]
@@ -141,7 +141,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
-        problem!.Errors.ShouldContainKey("Amount");
+        problem!.Errors["Amount"].ShouldBe(["Amount must be greater than zero."]);
     }
 
     [Fact]
@@ -158,7 +158,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
-        problem!.Errors.ShouldContainKey("Amount");
+        problem!.Errors["Amount"].ShouldBe(["Amount must be greater than zero."]);
     }
 
     [Fact]
@@ -175,7 +175,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
-        problem!.Errors.ShouldContainKey("MonthlyIncome");
+        problem!.Errors["MonthlyIncome"].ShouldBe(["Monthly income must be greater than zero."]);
     }
 
     [Fact]
@@ -192,7 +192,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
-        problem!.Errors.ShouldContainKey("MonthlyIncome");
+        problem!.Errors["MonthlyIncome"].ShouldBe(["Monthly income must be greater than zero."]);
     }
 
     [Fact]
@@ -209,7 +209,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
-        problem!.Errors.ShouldContainKey("TermMonths");
+        problem!.Errors["TermMonths"].ShouldBe(["Term months must be greater than zero."]);
     }
 
     [Fact]
@@ -226,7 +226,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
-        problem!.Errors.ShouldContainKey("TermMonths");
+        problem!.Errors["TermMonths"].ShouldBe(["Term months must be greater than zero."]);
     }
 
     private static StringContent CreateLoanRequest(string name = "John")
