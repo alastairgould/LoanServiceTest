@@ -21,5 +21,13 @@ public class LoanContext : DbContext
        modelBuilder.Entity<LoanApplication>()
            .Property(e => e.Status)
            .HasConversion<string>();
+
+       modelBuilder.Entity<LoanApplication>()
+           .HasIndex(e => e.Status);
+
+       modelBuilder.Entity<DecisionLogEntry>()
+           .HasOne<LoanApplication>()
+           .WithMany()
+           .HasForeignKey(e => e.LoanApplicationId);
    }
 }
