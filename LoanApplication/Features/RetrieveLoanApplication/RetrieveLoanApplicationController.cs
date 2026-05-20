@@ -9,12 +9,12 @@ namespace LoanApplication.Features.RetrieveLoanApplication;
 public class RetrieveLoanApplicationController(LoanContext loanContext) : ControllerBase
 {
     [HttpGet("{id:guid}")]
-    public IActionResult Retrieve(Guid id)
+    public async Task<IActionResult> Retrieve(Guid id, CancellationToken cancellationToken)
     {
-        var application = loanContext.LoanApplications
+        var application = await loanContext.LoanApplications
             .Include(la => la.DecisionLogEntries)
             .AsNoTracking()
-            .FirstOrDefault(la => la.Id == id);
+            .FirstOrDefaultAsync(la => la.Id == id, cancellationToken);
 
         if (application is null)
             return NotFound();

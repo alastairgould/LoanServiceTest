@@ -12,7 +12,7 @@ public class ApplyForLoanController(
     : ControllerBase
 {
     [HttpPost]
-    public IActionResult Apply([FromBody] LoanApplicationRequest request)
+    public async Task<IActionResult> Apply([FromBody] LoanApplicationRequest request, CancellationToken cancellationToken)
     {
         var errors = validator.Validate(request);
 
@@ -31,7 +31,7 @@ public class ApplyForLoanController(
             null);
 
         loanContext.LoanApplications.Add(loan);
-        loanContext.SaveChanges();
+        await loanContext.SaveChangesAsync(cancellationToken);
         var result = new LoanApplicationResult(loan.Id, loan.Status, loan.CreatedAt);
         return Created($"/loan-applications/{loan.Id}", result);
     }
