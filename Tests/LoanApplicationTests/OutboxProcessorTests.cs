@@ -1,5 +1,4 @@
 using LoanApplication.Domain;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using OutboxPublisherService.Infrastructure.BackgroundService;
@@ -79,9 +78,28 @@ public class OutboxProcessorTests
         await db.SaveChangesAsync();
     }
 
-    private async Task<OutboxProcessor> CreateSut(TimeProvider timeProvider)
+    [Fact]
+    public async Task ProcessesUpToBatchSize_WhenMoreUnpublishedMessages()
     {
-        var processorFactory = new OutboxProcessorFactory(_fixture.DbFactory, NullLoggerFactory.Instance, timeProvider);
+        var fakeTimeProvider = new FakeTimeProvider();
+        fakeTimeProvider.AdjustTime(new DateTimeOffset(2026, 4, 5, 13, 30, 30, TimeSpan.Zero));
+
+        var sut = await CreateSut(fakeTimeProvider, batchSize: 2);
+
+        await SeedOutboxMessage(Guid.NewGuid(), occurredAt: new DateTime(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc));
+        await SeedOutboxMessage(Guid.NewGuid(), occurredAt: new DateTime(2026, 4, 2, 0, 0, 0, DateTimeKind.Utc));
+        await SeedOutboxMessage(Guid.NewGuid(), occurredAt: new DateTime(2026, 4, 3, 0, 0, 0, DateTimeKind.Utc));
+
+        await sut.ProcessAsync(CancellationToken.None);
+
+        await using var db = _fixture.DbFactory.CreateDbContext();
+        db.OutboxMessages.Count(m => m.PublishedAt != null).ShouldBe(2);
+        db.OutboxMessages.Count(m => m.PublishedAt == null).ShouldBe(1);
+    }
+
+    private async Task<OutboxProcessor> CreateSut(TimeProvider timeProvider, int batchSize = 500)
+    {
+        var processorFactory = new OutboxProcessorFactory(_fixture.DbFactory, NullLoggerFactory.Instance, timeProvider, batchSize);
         return await processorFactory.CreateAsync();
     }
 }

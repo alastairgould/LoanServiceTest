@@ -6,7 +6,8 @@ namespace OutboxPublisherService.Infrastructure.BackgroundService;
 
 public sealed class OutboxProcessor(
     LoanContext context,
-    OutboxMessageHandler handler) : IAsyncDisposable
+    OutboxMessageHandler handler,
+    int batchSize) : IAsyncDisposable
 {
     public async Task ProcessAsync(CancellationToken cancellationToken)
     {
@@ -14,6 +15,7 @@ public sealed class OutboxProcessor(
             .AsNoTracking()
             .Where(m => m.PublishedAt == null)
             .OrderBy(m => m.OccurredAt)
+            .Take(batchSize)
             .ToListAsync(cancellationToken);
 
         foreach (var message in unpublished)

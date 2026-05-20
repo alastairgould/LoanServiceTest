@@ -24,7 +24,7 @@ public class LoanContext : DbContext
            .HasConversion<string>();
 
        modelBuilder.Entity<LoanApplication>()
-           .HasIndex(e => e.Status);
+           .HasIndex(e => new { e.Status, e.CreatedAt });
 
        modelBuilder.Entity<DecisionLogEntry>()
            .HasOne<LoanApplication>()

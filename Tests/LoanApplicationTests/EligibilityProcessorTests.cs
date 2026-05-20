@@ -214,6 +214,25 @@ public class EligibilityProcessorTests
         entries.Select(e => e.RuleName).ShouldBe(["MinimumIncome", "AmountWithinLimit", "TermWithinRange"], ignoreOrder: true);
     }
 
+    [Fact]
+    public async Task ProcessesUpToBatchSize_WhenMorePendingLoans()
+    {
+        var fakeTimeProvider = new FakeTimeProvider();
+        fakeTimeProvider.AdjustTime(new DateTimeOffset(2026, 4, 5, 13, 30, 30, TimeSpan.Zero));
+
+        var sut = await CreateSut(fakeTimeProvider, batchSize: 2);
+
+        await SeedLoan(Guid.NewGuid(), monthlyIncome: 3000m, requestedAmount: 5000m, termMonths: 24);
+        await SeedLoan(Guid.NewGuid(), monthlyIncome: 3000m, requestedAmount: 5000m, termMonths: 24);
+        await SeedLoan(Guid.NewGuid(), monthlyIncome: 3000m, requestedAmount: 5000m, termMonths: 24);
+
+        await sut.ProcessAsync(CancellationToken.None);
+
+        await using var db = _fixture.DbFactory.CreateDbContext();
+        db.LoanApplications.Count(la => la.Status != LoanStatus.Pending).ShouldBe(2);
+        db.LoanApplications.Count(la => la.Status == LoanStatus.Pending).ShouldBe(1);
+    }
+
     private async Task SeedLoan(
         Guid id,
         decimal monthlyIncome,
@@ -229,7 +248,7 @@ public class EligibilityProcessorTests
         await db.SaveChangesAsync();
     }
 
-    private async Task<EligibilityProcessor> CreateSut(TimeProvider timeProvider)
+    private async Task<EligibilityProcessor> CreateSut(TimeProvider timeProvider, int batchSize = 500)
     {
         var rules = new IEligibilityRule[]
         {
@@ -237,7 +256,7 @@ public class EligibilityProcessorTests
             new AmountWithinLimitRule(),
             new TermWithinRangeRule()
         };
-        var processorFactory = new EligibilityProcessorFactory(_fixture.DbFactory, timeProvider, rules);
+        var processorFactory = new EligibilityProcessorFactory(_fixture.DbFactory, timeProvider, rules, batchSize);
         return await processorFactory.CreateAsync();
     }
 }
