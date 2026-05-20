@@ -1,7 +1,7 @@
 using System.Text.Json;
 using EligibilityService.Features.LoanEligibility.Rules;
 using EligibilityService.Infrastructure.BackgroundService;
-using EligibilityService.Infrastructure.Messaging;
+using EligibilityService.Infrastructure.EventPublishing;
 using LoanApplication.Domain;
 using LoanApplication.Domain.Events;
 using Microsoft.Extensions.Time.Testing;
@@ -231,14 +231,13 @@ public class EligibilityProcessorTests
 
     private async Task<EligibilityProcessor> CreateSut(TimeProvider timeProvider)
     {
-        var publisherFactory = new OutboxEventPublisherFactory(timeProvider);
         var rules = new IEligibilityRule[]
         {
             new MinimumIncomeRule(),
             new AmountWithinLimitRule(),
             new TermWithinRangeRule()
         };
-        var processorFactory = new EligibilityProcessorFactory(_fixture.DbFactory, publisherFactory, timeProvider, rules);
+        var processorFactory = new EligibilityProcessorFactory(_fixture.DbFactory, timeProvider, rules);
         return await processorFactory.CreateAsync();
     }
 }

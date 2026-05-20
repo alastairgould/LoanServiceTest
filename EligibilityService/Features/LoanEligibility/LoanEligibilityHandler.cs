@@ -1,5 +1,5 @@
 using EligibilityService.Features.LoanEligibility.Rules;
-using EligibilityService.Infrastructure.Messaging;
+using EligibilityService.Infrastructure.EventPublishing;
 using LoanApplication.Domain;
 using LoanApplication.Domain.Events;
 using LoanEntity = LoanApplication.Domain.LoanApplication;
