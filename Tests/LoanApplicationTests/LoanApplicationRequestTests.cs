@@ -194,22 +194,8 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
         decimal requestedAmount = 10000m,
         int termMonths = 12)
     {
-        StringContent? jsonContent = null;
-        try
-        {
-            var loanApplication = new LoanApplicationRequest(name, email, monthlyIncome, requestedAmount, termMonths);
-
-            jsonContent = new(
-                JsonSerializer.Serialize(loanApplication),
-                Encoding.UTF8,
-                "application/json");
-            return jsonContent;
-        }
-        catch
-        {
-            jsonContent?.Dispose();
-            throw;
-        }
+        var loanApplication = new LoanApplicationRequest(name, email, monthlyIncome, requestedAmount, termMonths);
+        return new StringContent(JsonSerializer.Serialize(loanApplication), Encoding.UTF8, "application/json");
     }
 
     private HttpClient CreateApi(TimeProvider? timeProvider = null)

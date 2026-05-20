@@ -8,7 +8,6 @@ public class LoanContext(DbContextOptions<LoanContext> contextOptions) : DbConte
    public DbSet<DecisionLogEntry> DecisionLogEntries { get; set; }
    public DbSet<OutboxMessage> OutboxMessages { get; set; }
 
-
    protected override void OnModelCreating(ModelBuilder modelBuilder)
    {
        modelBuilder.Entity<LoanApplication>()
