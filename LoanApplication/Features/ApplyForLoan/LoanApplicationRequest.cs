@@ -1,3 +1,3 @@
 namespace LoanApplication.Features.ApplyForLoan;
 
-public record LoanApplicationRequest(string Name, string Email, int Amount, decimal MonthlyIncome, int TermMonths);
+public record LoanApplicationRequest(string Name, string Email, decimal MonthlyIncome, decimal RequestedAmount, int TermMonths);

@@ -36,7 +36,7 @@ public class RetrieveLoanApplicationTests : IClassFixture<CustomWebApplicationFa
         details.Id.ShouldBe(created.Id);
         details.Name.ShouldBe("John");
         details.Email.ShouldBe("john@gmail.com");
-        details.MonthlyIncome.ShouldBe(10000);
+        details.MonthlyIncome.ShouldBe(10000m);
         details.RequestedAmount.ShouldBe(10000m);
         details.TermMonths.ShouldBe(12);
         details.Status.ShouldBe(LoanStatus.Pending);

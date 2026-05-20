@@ -6,7 +6,7 @@ public record LoanApplicationDetails(
     Guid Id,
     string Name,
     string Email,
-    int MonthlyIncome,
+    decimal MonthlyIncome,
     decimal RequestedAmount,
     int TermMonths,
     LoanStatus Status,

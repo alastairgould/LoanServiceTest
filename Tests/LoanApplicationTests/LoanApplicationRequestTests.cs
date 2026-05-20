@@ -52,7 +52,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
         saved.Id.ShouldBe(result!.Id);
         saved.Name.ShouldBe("John");
         saved.Email.ShouldBe("john@gmail.com");
-        saved.MonthlyIncome.ShouldBe(10000);
+        saved.MonthlyIncome.ShouldBe(10000m);
         saved.RequestedAmount.ShouldBe(10000m);
         saved.TermMonths.ShouldBe(12);
         saved.Status.ShouldBe(LoanStatus.Pending);
@@ -117,29 +117,29 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
     }
 
     [Fact]
-    public async Task LoanApplicationReturnsValidationError_WhenAmountIsZero()
+    public async Task LoanApplicationReturnsValidationError_WhenRequestedAmountIsZero()
     {
         var client = CreateApi(new FakeTimeProvider());
-        using var request = CreateLoanRequest(amount: 0);
+        using var request = CreateLoanRequest(requestedAmount: 0m);
 
         var response = await client.PostAsync("/loan-applications", request);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
-        problem!.Errors["Amount"].ShouldBe(["Amount must be greater than zero."]);
+        problem!.Errors["RequestedAmount"].ShouldBe(["Requested amount must be greater than zero."]);
     }
 
     [Fact]
-    public async Task LoanApplicationReturnsValidationError_WhenAmountIsNegative()
+    public async Task LoanApplicationReturnsValidationError_WhenRequestedAmountIsNegative()
     {
         var client = CreateApi(new FakeTimeProvider());
-        using var request = CreateLoanRequest(amount: -1);
+        using var request = CreateLoanRequest(requestedAmount: -1m);
 
         var response = await client.PostAsync("/loan-applications", request);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
-        problem!.Errors["Amount"].ShouldBe(["Amount must be greater than zero."]);
+        problem!.Errors["RequestedAmount"].ShouldBe(["Requested amount must be greater than zero."]);
     }
 
     [Fact]
@@ -197,14 +197,14 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
     private static StringContent CreateLoanRequest(
         string name = "John",
         string email = "john@gmail.com",
-        int amount = 10000,
         decimal monthlyIncome = 10000m,
+        decimal requestedAmount = 10000m,
         int termMonths = 12)
     {
         StringContent? jsonContent = null;
         try
         {
-            var loanApplication = new LoanApplicationRequest(name, email, amount, monthlyIncome, termMonths);
+            var loanApplication = new LoanApplicationRequest(name, email, monthlyIncome, requestedAmount, termMonths);
 
             jsonContent = new(
                 JsonSerializer.Serialize(loanApplication),

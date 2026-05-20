@@ -217,7 +217,7 @@ public class EligibilityProcessorTests
 
     private async Task SeedLoan(
         Guid id,
-        int monthlyIncome,
+        decimal monthlyIncome,
         decimal requestedAmount,
         int termMonths,
         LoanStatus status = LoanStatus.Pending,
