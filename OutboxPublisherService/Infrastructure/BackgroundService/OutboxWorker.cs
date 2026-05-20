@@ -6,7 +6,7 @@ public class OutboxWorker(
     OutboxProcessorFactory processorFactory,
     ILogger<OutboxWorker> logger) : Microsoft.Extensions.Hosting.BackgroundService
 {
-    private static readonly TimeSpan Interval = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan Interval = TimeSpan.FromSeconds(1);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
