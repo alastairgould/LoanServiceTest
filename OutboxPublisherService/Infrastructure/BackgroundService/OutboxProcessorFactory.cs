@@ -14,8 +14,9 @@ public sealed class OutboxProcessorFactory(
     public async Task<OutboxProcessor> CreateAsync(CancellationToken cancellationToken = default)
     {
         var context = await contextFactory.CreateDbContextAsync(cancellationToken);
-        var logger = loggerFactory.CreateLogger<OutboxMessageHandler>();
-        var handler = new OutboxMessageHandler(context, logger, timeProvider);
-        return new OutboxProcessor(context, handler, batchSize);
+        var handlerLogger = loggerFactory.CreateLogger<OutboxMessageHandler>();
+        var handler = new OutboxMessageHandler(context, handlerLogger, timeProvider);
+        var processorLogger = loggerFactory.CreateLogger<OutboxProcessor>();
+        return new OutboxProcessor(context, handler, processorLogger, batchSize);
     }
 }

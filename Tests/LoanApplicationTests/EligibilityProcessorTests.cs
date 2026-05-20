@@ -4,6 +4,7 @@ using EligibilityService.Infrastructure.BackgroundService;
 using EligibilityService.Infrastructure.EventPublishing;
 using LoanApplication.Domain;
 using LoanApplication.Domain.Events;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using Shouldly;
 
@@ -217,6 +218,51 @@ public class EligibilityProcessorTests
     }
 
     [Fact]
+    public async Task IsolatesFailure_WhenOneLoanInBatchThrows()
+    {
+        var fakeTimeProvider = new FakeTimeProvider();
+        fakeTimeProvider.AdjustTime(new DateTimeOffset(2026, 4, 5, 13, 30, 30, TimeSpan.Zero));
+
+        var firstId = Guid.NewGuid();
+        var poisonId = Guid.NewGuid();
+        var lastId = Guid.NewGuid();
+
+        await SeedLoan(firstId, monthlyIncome: 3000m, requestedAmount: 5000m, termMonths: 24,
+            createdAt: new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        await SeedLoan(poisonId, monthlyIncome: 3000m, requestedAmount: 5000m, termMonths: 24,
+            createdAt: new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc));
+        await SeedLoan(lastId, monthlyIncome: 3000m, requestedAmount: 5000m, termMonths: 24,
+            createdAt: new DateTime(2026, 1, 3, 0, 0, 0, DateTimeKind.Utc));
+
+        IEligibilityRule[] rules =
+        [
+            new MinimumIncomeRule(),
+            new AmountWithinLimitRule(),
+            new TermWithinRangeRule(),
+            new ThrowingRule(poisonId)
+        ];
+
+        await using var sut = await CreateSut(fakeTimeProvider, rules: rules);
+        await sut.ProcessAsync(CancellationToken.None);
+
+        await using var db = _fixture.DbFactory.CreateDbContext();
+
+        db.LoanApplications.Single(la => la.Id == firstId).Status.ShouldBe(LoanStatus.Approved);
+        db.LoanApplications.Single(la => la.Id == lastId).Status.ShouldBe(LoanStatus.Approved);
+
+        var poison = db.LoanApplications.Single(la => la.Id == poisonId);
+        poison.Status.ShouldBe(LoanStatus.Pending);
+        poison.ReviewedAt.ShouldBeNull();
+
+        db.DecisionLogEntries.Count(d => d.LoanApplicationId == poisonId).ShouldBe(0);
+        db.DecisionLogEntries.Count(d => d.LoanApplicationId == firstId).ShouldBe(4);
+        db.DecisionLogEntries.Count(d => d.LoanApplicationId == lastId).ShouldBe(4);
+
+        db.OutboxMessages.Count().ShouldBe(2);
+        db.OutboxMessages.ShouldAllBe(m => m.Type == nameof(LoanApproved));
+    }
+
+    [Fact]
     public async Task ProcessesUpToBatchSize_WhenMorePendingLoans()
     {
         var fakeTimeProvider = new FakeTimeProvider();
@@ -241,24 +287,44 @@ public class EligibilityProcessorTests
         decimal requestedAmount,
         int termMonths,
         LoanStatus status = LoanStatus.Pending,
-        DateTime? reviewedAt = null)
+        DateTime? reviewedAt = null,
+        DateTime? createdAt = null)
     {
         await using var db = _fixture.DbFactory.CreateDbContext();
         db.LoanApplications.Add(new LoanApplication.Domain.LoanApplication(
             id, "John", "john@gmail.com", monthlyIncome, requestedAmount, termMonths,
-            status, new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), reviewedAt));
+            status, createdAt ?? new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), reviewedAt));
         await db.SaveChangesAsync();
     }
 
-    private async Task<EligibilityProcessor> CreateSut(TimeProvider timeProvider, int batchSize = 500)
+    private async Task<EligibilityProcessor> CreateSut(
+        TimeProvider timeProvider,
+        int batchSize = 500,
+        IEligibilityRule[]? rules = null)
     {
-        var rules = new IEligibilityRule[]
-        {
+        rules ??=
+        [
             new MinimumIncomeRule(),
             new AmountWithinLimitRule(),
             new TermWithinRangeRule()
-        };
-        var processorFactory = new EligibilityProcessorFactory(_fixture.DbFactory, timeProvider, rules, batchSize);
+        ];
+        var processorFactory = new EligibilityProcessorFactory(
+            _fixture.DbFactory, NullLoggerFactory.Instance, timeProvider, rules, batchSize);
         return await processorFactory.CreateAsync();
+    }
+
+    private sealed class ThrowingRule(Guid targetLoanId) : IEligibilityRule
+    {
+        public string Name => "Throwing";
+        public string Message => "boom";
+        public bool Evaluate(LoanApplication.Domain.LoanApplication loan)
+        {
+            if (loan.Id == targetLoanId)
+            {
+                throw new InvalidOperationException("simulated rule failure");
+            }
+            
+            return true;
+        }
     }
 }

@@ -8,7 +8,7 @@ public class OutboxMessageHandler(
     ILogger<OutboxMessageHandler> logger,
     TimeProvider timeProvider)
 {
-    public Task HandleAsync(OutboxMessage message, CancellationToken cancellationToken)
+    public virtual Task HandleAsync(OutboxMessage message, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 

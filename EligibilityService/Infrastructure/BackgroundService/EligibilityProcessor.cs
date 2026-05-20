@@ -1,12 +1,14 @@
 using EligibilityService.Features.LoanEligibility;
 using LoanApplication.Domain;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace EligibilityService.Infrastructure.BackgroundService;
 
 public sealed class EligibilityProcessor(
     LoanContext context,
     LoanEligibilityHandler handler,
+    ILogger<EligibilityProcessor> logger,
     int batchSize) : IAsyncDisposable
 {
     public async Task ProcessAsync(CancellationToken cancellationToken)
@@ -20,10 +22,20 @@ public sealed class EligibilityProcessor(
 
         foreach (var loan in pending)
         {
-            await handler.HandleAsync(loan, cancellationToken);
+            try
+            {
+                await handler.HandleAsync(loan, cancellationToken);
+                await context.SaveChangesAsync(cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogError(ex, "Failed to process loan {LoanId}", loan.Id);
+            }
+            finally
+            {
+                context.ChangeTracker.Clear();
+            }
         }
-
-        await context.SaveChangesAsync(cancellationToken);
     }
 
     public ValueTask DisposeAsync() => context.DisposeAsync();
