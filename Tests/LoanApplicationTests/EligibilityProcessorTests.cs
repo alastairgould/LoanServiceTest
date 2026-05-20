@@ -1,7 +1,6 @@
 using System.Text.Json;
 using EligibilityService.Features.LoanEligibility.Rules;
 using EligibilityService.Infrastructure.BackgroundService;
-using EligibilityService.Infrastructure.EventPublishing;
 using LoanApplication.Domain;
 using LoanApplication.Domain.Events;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -220,8 +219,8 @@ public class EligibilityProcessorTests
         [
             new MinimumIncomeRule(),
             new AmountWithinLimitRule(),
+            new ThrowingRule(poisonId),
             new TermWithinRangeRule(),
-            new ThrowingRule(poisonId)
         ];
 
         await using var sut = await CreateSut(rules: rules);

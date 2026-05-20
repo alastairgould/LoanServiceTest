@@ -15,16 +15,13 @@ namespace LoanApplicationTests;
 
 public class RetrieveLoanApplicationTests : IClassFixture<CustomWebApplicationFactory<Program>>
 {
+    private static readonly DateTimeOffset CurrentTime = new(2026, 4, 5, 13, 30, 30, TimeSpan.Zero);
     private readonly CustomWebApplicationFactory<Program> _factory = new();
 
     [Fact]
     public async Task RetrieveLoanApplicationReturnsApplication_WhenItExists()
     {
-        var currentTime = new DateTimeOffset(2026, 4, 5, 13, 30, 30, TimeSpan.Zero);
-        var fakeTimeProvider = new FakeTimeProvider();
-        fakeTimeProvider.AdjustTime(currentTime);
-
-        var client = CreateApi(fakeTimeProvider);
+        var client = CreateApi();
         using var createRequest = GetLoanRequest();
         var createResponse = await client.PostAsync("/loan-applications", createRequest);
         var created = await createResponse.Content.ReadFromJsonAsync<LoanApplicationResult>();
@@ -41,7 +38,7 @@ public class RetrieveLoanApplicationTests : IClassFixture<CustomWebApplicationFa
         details.RequestedAmount.ShouldBe(10000m);
         details.TermMonths.ShouldBe(12);
         details.Status.ShouldBe(LoanStatus.Pending);
-        details.CreatedAt.ShouldBe(currentTime.UtcDateTime);
+        details.CreatedAt.ShouldBe(CurrentTime.UtcDateTime);
         details.ReviewedAt.ShouldBeNull();
         details.DecisionLog.ShouldBeEmpty();
     }
@@ -49,7 +46,7 @@ public class RetrieveLoanApplicationTests : IClassFixture<CustomWebApplicationFa
     [Fact]
     public async Task RetrieveLoanApplicationIncludesDecisionLog_WhenEntriesExist()
     {
-        var client = CreateApi(new FakeTimeProvider());
+        var client = CreateApi();
 
         var loanId = Guid.NewGuid();
         var createdAt = new DateTime(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -78,18 +75,18 @@ public class RetrieveLoanApplicationTests : IClassFixture<CustomWebApplicationFa
             .ShouldBe(["MinimumIncome", "AmountWithinLimit", "TermWithinRange"], ignoreOrder: true);
     }
 
-    private IDbContextFactory<LoanContext> GetDbContextFactory() =>
-        _factory.Services.GetRequiredService<IDbContextFactory<LoanContext>>();
-
     [Fact]
     public async Task RetrieveLoanApplicationReturnsNotFound_WhenItDoesNotExist()
     {
-        var client = CreateApi(new FakeTimeProvider());
+        var client = CreateApi();
 
         var response = await client.GetAsync($"/loan-applications/{Guid.NewGuid()}");
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
+
+    private IDbContextFactory<LoanContext> GetDbContextFactory() =>
+        _factory.Services.GetRequiredService<IDbContextFactory<LoanContext>>();
 
     private static StringContent GetLoanRequest(
         string name = "John",
@@ -116,14 +113,22 @@ public class RetrieveLoanApplicationTests : IClassFixture<CustomWebApplicationFa
         }
     }
 
-    private HttpClient CreateApi(FakeTimeProvider fakeTimeProvider)
+    private HttpClient CreateApi(TimeProvider? timeProvider = null)
     {
+        timeProvider ??= CreateTimeProvider();
         var client = _factory.WithWebHostBuilder(builder =>
         {
             builder.ConfigureTestServices(config =>
-                config.AddTransient<TimeProvider>(sp => fakeTimeProvider));
+                config.AddTransient<TimeProvider>(sp => timeProvider));
 
         }).CreateClient();
         return client;
+    }
+
+    private static FakeTimeProvider CreateTimeProvider(DateTimeOffset? currentTime = null)
+    {
+        var provider = new FakeTimeProvider();
+        provider.AdjustTime(currentTime ?? CurrentTime);
+        return provider;
     }
 }

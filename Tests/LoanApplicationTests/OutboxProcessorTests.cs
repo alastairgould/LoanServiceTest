@@ -9,16 +9,13 @@ namespace LoanApplicationTests;
 
 public class OutboxProcessorTests
 {
+    private static readonly DateTimeOffset CurrentTime = new(2026, 4, 5, 13, 30, 30, TimeSpan.Zero);
     private readonly EligibilityTestFixture _fixture = new();
 
     [Fact]
     public async Task MarksMessageAsPublished_WhenProcessed()
     {
-        var currentTime = new DateTimeOffset(2026, 4, 5, 13, 30, 30, TimeSpan.Zero);
-        var fakeTimeProvider = new FakeTimeProvider();
-        fakeTimeProvider.AdjustTime(currentTime);
-
-        var sut = await CreateSut(fakeTimeProvider);
+        var sut = await CreateSut();
 
         var messageId = Guid.NewGuid();
         await SeedOutboxMessage(messageId, occurredAt: new DateTime(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc));
@@ -27,13 +24,13 @@ public class OutboxProcessorTests
 
         await using var db = _fixture.DbFactory.CreateDbContext();
         var message = db.OutboxMessages.Single(m => m.Id == messageId);
-        message.PublishedAt.ShouldBe(currentTime.UtcDateTime);
+        message.PublishedAt.ShouldBe(CurrentTime.UtcDateTime);
     }
 
     [Fact]
     public async Task SkipsAlreadyPublishedMessages()
     {
-        var sut = await CreateSut(new FakeTimeProvider());
+        var sut = await CreateSut();
 
         var messageId = Guid.NewGuid();
         var originalPublishedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -48,11 +45,7 @@ public class OutboxProcessorTests
     [Fact]
     public async Task ProcessesMultipleUnpublishedMessages()
     {
-        var currentTime = new DateTimeOffset(2026, 4, 5, 13, 30, 30, TimeSpan.Zero);
-        var fakeTimeProvider = new FakeTimeProvider();
-        fakeTimeProvider.AdjustTime(currentTime);
-
-        var sut = await CreateSut(fakeTimeProvider);
+        var sut = await CreateSut();
 
         var firstId = Guid.NewGuid();
         var secondId = Guid.NewGuid();
@@ -64,7 +57,47 @@ public class OutboxProcessorTests
         await using var db = _fixture.DbFactory.CreateDbContext();
         db.OutboxMessages.Where(m => m.Id == firstId || m.Id == secondId)
             .ToList()
-            .ShouldAllBe(m => m.PublishedAt == currentTime.UtcDateTime);
+            .ShouldAllBe(m => m.PublishedAt == CurrentTime.UtcDateTime);
+    }
+
+    [Fact]
+    public async Task ProcessesUpToBatchSize_WhenMoreUnpublishedMessages()
+    {
+        var sut = await CreateSut(batchSize: 2);
+
+        await SeedOutboxMessage(Guid.NewGuid(), occurredAt: new DateTime(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc));
+        await SeedOutboxMessage(Guid.NewGuid(), occurredAt: new DateTime(2026, 4, 2, 0, 0, 0, DateTimeKind.Utc));
+        await SeedOutboxMessage(Guid.NewGuid(), occurredAt: new DateTime(2026, 4, 3, 0, 0, 0, DateTimeKind.Utc));
+
+        await sut.ProcessAsync(CancellationToken.None);
+
+        await using var db = _fixture.DbFactory.CreateDbContext();
+        db.OutboxMessages.Count(m => m.PublishedAt != null).ShouldBe(2);
+        db.OutboxMessages.Count(m => m.PublishedAt == null).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task IsolatesFailure_WhenOneMessageThrows()
+    {
+        var firstId = Guid.NewGuid();
+        var poisonId = Guid.NewGuid();
+        var lastId = Guid.NewGuid();
+
+        await SeedOutboxMessage(firstId, occurredAt: new DateTime(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc));
+        await SeedOutboxMessage(poisonId, occurredAt: new DateTime(2026, 4, 2, 0, 0, 0, DateTimeKind.Utc));
+        await SeedOutboxMessage(lastId, occurredAt: new DateTime(2026, 4, 3, 0, 0, 0, DateTimeKind.Utc));
+
+        var context = _fixture.DbFactory.CreateDbContext();
+        var handler = new ThrowingHandler(context, CreateTimeProvider(), poisonId);
+        await using var sut = new OutboxProcessor(
+            context, handler, NullLogger<OutboxProcessor>.Instance, batchSize: 500);
+
+        await sut.ProcessAsync(CancellationToken.None);
+
+        await using var db = _fixture.DbFactory.CreateDbContext();
+        db.OutboxMessages.Single(m => m.Id == firstId).PublishedAt.ShouldBe(CurrentTime.UtcDateTime);
+        db.OutboxMessages.Single(m => m.Id == lastId).PublishedAt.ShouldBe(CurrentTime.UtcDateTime);
+        db.OutboxMessages.Single(m => m.Id == poisonId).PublishedAt.ShouldBeNull();
     }
 
     private async Task SeedOutboxMessage(
@@ -79,57 +112,19 @@ public class OutboxProcessorTests
         await db.SaveChangesAsync();
     }
 
-    [Fact]
-    public async Task ProcessesUpToBatchSize_WhenMoreUnpublishedMessages()
+    private async Task<OutboxProcessor> CreateSut(TimeProvider? timeProvider = null, int batchSize = 500)
     {
-        var fakeTimeProvider = new FakeTimeProvider();
-        fakeTimeProvider.AdjustTime(new DateTimeOffset(2026, 4, 5, 13, 30, 30, TimeSpan.Zero));
-
-        var sut = await CreateSut(fakeTimeProvider, batchSize: 2);
-
-        await SeedOutboxMessage(Guid.NewGuid(), occurredAt: new DateTime(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc));
-        await SeedOutboxMessage(Guid.NewGuid(), occurredAt: new DateTime(2026, 4, 2, 0, 0, 0, DateTimeKind.Utc));
-        await SeedOutboxMessage(Guid.NewGuid(), occurredAt: new DateTime(2026, 4, 3, 0, 0, 0, DateTimeKind.Utc));
-
-        await sut.ProcessAsync(CancellationToken.None);
-
-        await using var db = _fixture.DbFactory.CreateDbContext();
-        db.OutboxMessages.Count(m => m.PublishedAt != null).ShouldBe(2);
-        db.OutboxMessages.Count(m => m.PublishedAt == null).ShouldBe(1);
-    }
-
-    private async Task<OutboxProcessor> CreateSut(TimeProvider timeProvider, int batchSize = 500)
-    {
-        var processorFactory = new OutboxProcessorFactory(_fixture.DbFactory, NullLoggerFactory.Instance, timeProvider, batchSize);
+        timeProvider ??= CreateTimeProvider();
+        var processorFactory = new OutboxProcessorFactory(
+            _fixture.DbFactory, NullLoggerFactory.Instance, timeProvider, batchSize);
         return await processorFactory.CreateAsync();
     }
 
-    [Fact]
-    public async Task IsolatesFailure_WhenOneMessageThrows()
+    private static FakeTimeProvider CreateTimeProvider(DateTimeOffset? currentTime = null)
     {
-        var currentTime = new DateTimeOffset(2026, 4, 5, 13, 30, 30, TimeSpan.Zero);
-        var fakeTimeProvider = new FakeTimeProvider();
-        fakeTimeProvider.AdjustTime(currentTime);
-
-        var firstId = Guid.NewGuid();
-        var poisonId = Guid.NewGuid();
-        var lastId = Guid.NewGuid();
-
-        await SeedOutboxMessage(firstId, occurredAt: new DateTime(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc));
-        await SeedOutboxMessage(poisonId, occurredAt: new DateTime(2026, 4, 2, 0, 0, 0, DateTimeKind.Utc));
-        await SeedOutboxMessage(lastId, occurredAt: new DateTime(2026, 4, 3, 0, 0, 0, DateTimeKind.Utc));
-
-        var context = _fixture.DbFactory.CreateDbContext();
-        var handler = new ThrowingHandler(context, fakeTimeProvider, poisonId);
-        await using var sut = new OutboxProcessor(
-            context, handler, NullLogger<OutboxProcessor>.Instance, batchSize: 500);
-
-        await sut.ProcessAsync(CancellationToken.None);
-
-        await using var db = _fixture.DbFactory.CreateDbContext();
-        db.OutboxMessages.Single(m => m.Id == firstId).PublishedAt.ShouldBe(currentTime.UtcDateTime);
-        db.OutboxMessages.Single(m => m.Id == lastId).PublishedAt.ShouldBe(currentTime.UtcDateTime);
-        db.OutboxMessages.Single(m => m.Id == poisonId).PublishedAt.ShouldBeNull();
+        var provider = new FakeTimeProvider();
+        provider.AdjustTime(currentTime ?? CurrentTime);
+        return provider;
     }
 
     private sealed class ThrowingHandler(LoanContext context, TimeProvider timeProvider, Guid targetMessageId)

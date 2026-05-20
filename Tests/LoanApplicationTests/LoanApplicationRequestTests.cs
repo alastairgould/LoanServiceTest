@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
@@ -14,33 +14,26 @@ namespace LoanApplicationTests;
 
 public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFactory<Program>>
 {
+    private static readonly DateTimeOffset CurrentTime = new(2026, 4, 5, 13, 30, 30, TimeSpan.Zero);
     private readonly CustomWebApplicationFactory<Program> _factory = new();
 
     [Fact]
     public async Task LoanApplicationReturnsPending_WhenLoanApplicationPosted()
     {
-        var currentTime = new DateTimeOffset(2026, 4, 5, 13, 30, 30, TimeSpan.Zero);
-        var fakeTimeProvider = new FakeTimeProvider();
-        fakeTimeProvider.AdjustTime(currentTime);
-        
-        var client = CreateApi(fakeTimeProvider);
+        var client = CreateApi();
         using var request = CreateLoanRequest();
         var response = await client.PostAsync("/loan-applications", request);
         var result = await response.Content.ReadFromJsonAsync<LoanApplicationResult>();
 
         result.Status.ShouldBe(LoanStatus.Pending);
         result.Id.ShouldNotBe(Guid.Empty);
-        result.CreatedAt.ShouldBe(currentTime.UtcDateTime);
+        result.CreatedAt.ShouldBe(CurrentTime.UtcDateTime);
     }
-    
+
     [Fact]
     public async Task LoanApplicationSaved_WhenLoanApplicationPosted()
     {
-        var currentTime = new DateTimeOffset(2026, 4, 5, 13, 30, 30, TimeSpan.Zero);
-        var fakeTimeProvider = new FakeTimeProvider();
-        fakeTimeProvider.AdjustTime(currentTime);
-
-        var client = CreateApi(fakeTimeProvider);
+        var client = CreateApi();
         using var request = CreateLoanRequest();
         var response = await client.PostAsync("/loan-applications", request);
         var result = await response.Content.ReadFromJsonAsync<LoanApplicationResult>();
@@ -56,14 +49,14 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
         saved.RequestedAmount.ShouldBe(10000m);
         saved.TermMonths.ShouldBe(12);
         saved.Status.ShouldBe(LoanStatus.Pending);
-        saved.CreatedAt.ShouldBe(currentTime.UtcDateTime);
+        saved.CreatedAt.ShouldBe(CurrentTime.UtcDateTime);
         saved.ReviewedAt.ShouldBeNull();
     }
 
     [Fact]
     public async Task LoanApplicationReturnsValidationError_WhenNameIsEmpty()
     {
-        var client = CreateApi(new FakeTimeProvider());
+        var client = CreateApi();
         using var request = CreateLoanRequest(name: "");
 
         var response = await client.PostAsync("/loan-applications", request);
@@ -76,7 +69,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
     [Fact]
     public async Task LoanApplicationReturnsValidationError_WhenNameIsWhitespace()
     {
-        var client = CreateApi(new FakeTimeProvider());
+        var client = CreateApi();
         using var request = CreateLoanRequest(name: " ");
 
         var response = await client.PostAsync("/loan-applications", request);
@@ -89,7 +82,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
     [Fact]
     public async Task LoanApplicationReturnsValidationError_WhenEmailIsEmpty()
     {
-        var client = CreateApi(new FakeTimeProvider());
+        var client = CreateApi();
         using var request = CreateLoanRequest(email: "");
 
         var response = await client.PostAsync("/loan-applications", request);
@@ -106,7 +99,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
     [InlineData("john@@gmail.com")]
     public async Task LoanApplicationReturnsValidationError_WhenEmailIsMalformed(string email)
     {
-        var client = CreateApi(new FakeTimeProvider());
+        var client = CreateApi();
         using var request = CreateLoanRequest(email: email);
 
         var response = await client.PostAsync("/loan-applications", request);
@@ -119,7 +112,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
     [Fact]
     public async Task LoanApplicationReturnsValidationError_WhenRequestedAmountIsZero()
     {
-        var client = CreateApi(new FakeTimeProvider());
+        var client = CreateApi();
         using var request = CreateLoanRequest(requestedAmount: 0m);
 
         var response = await client.PostAsync("/loan-applications", request);
@@ -132,7 +125,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
     [Fact]
     public async Task LoanApplicationReturnsValidationError_WhenRequestedAmountIsNegative()
     {
-        var client = CreateApi(new FakeTimeProvider());
+        var client = CreateApi();
         using var request = CreateLoanRequest(requestedAmount: -1m);
 
         var response = await client.PostAsync("/loan-applications", request);
@@ -145,7 +138,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
     [Fact]
     public async Task LoanApplicationReturnsValidationError_WhenMonthlyIncomeIsZero()
     {
-        var client = CreateApi(new FakeTimeProvider());
+        var client = CreateApi();
         using var request = CreateLoanRequest(monthlyIncome: 0m);
 
         var response = await client.PostAsync("/loan-applications", request);
@@ -158,7 +151,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
     [Fact]
     public async Task LoanApplicationReturnsValidationError_WhenMonthlyIncomeIsNegative()
     {
-        var client = CreateApi(new FakeTimeProvider());
+        var client = CreateApi();
         using var request = CreateLoanRequest(monthlyIncome: -1m);
 
         var response = await client.PostAsync("/loan-applications", request);
@@ -171,7 +164,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
     [Fact]
     public async Task LoanApplicationReturnsValidationError_WhenTermMonthsIsZero()
     {
-        var client = CreateApi(new FakeTimeProvider());
+        var client = CreateApi();
         using var request = CreateLoanRequest(termMonths: 0);
 
         var response = await client.PostAsync("/loan-applications", request);
@@ -184,7 +177,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
     [Fact]
     public async Task LoanApplicationReturnsValidationError_WhenTermMonthsIsNegative()
     {
-        var client = CreateApi(new FakeTimeProvider());
+        var client = CreateApi();
         using var request = CreateLoanRequest(termMonths: -1);
 
         var response = await client.PostAsync("/loan-applications", request);
@@ -219,14 +212,22 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
         }
     }
 
-    private HttpClient CreateApi(FakeTimeProvider fakeTimeProvider)
+    private HttpClient CreateApi(TimeProvider? timeProvider = null)
     {
+        timeProvider ??= CreateTimeProvider();
         var client = _factory.WithWebHostBuilder(builder =>
         {
             builder.ConfigureTestServices(config =>
-                config.AddTransient<TimeProvider>(sp => fakeTimeProvider));
+                config.AddTransient<TimeProvider>(sp => timeProvider));
 
         }).CreateClient();
         return client;
+    }
+
+    private static FakeTimeProvider CreateTimeProvider(DateTimeOffset? currentTime = null)
+    {
+        var provider = new FakeTimeProvider();
+        provider.AdjustTime(currentTime ?? CurrentTime);
+        return provider;
     }
 }
