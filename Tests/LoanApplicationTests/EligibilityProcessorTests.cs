@@ -160,6 +160,7 @@ public class EligibilityProcessorTests
 
         var payload = JsonSerializer.Deserialize<LoanApproved>(outbox.Payload);
         payload.ShouldNotBeNull();
+        payload.Id.ShouldNotBe(Guid.Empty);
         payload.LoanApplicationId.ShouldBe(loanId);
         payload.ApprovedAt.ShouldBe(currentTime.UtcDateTime);
     }
@@ -186,6 +187,7 @@ public class EligibilityProcessorTests
 
         var payload = JsonSerializer.Deserialize<LoanRejected>(outbox.Payload);
         payload.ShouldNotBeNull();
+        payload.Id.ShouldNotBe(Guid.Empty);
         payload.LoanApplicationId.ShouldBe(loanId);
         payload.RejectedAt.ShouldBe(currentTime.UtcDateTime);
     }

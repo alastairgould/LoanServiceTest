@@ -1,3 +1,3 @@
 namespace LoanApplication.Domain.Events;
 
-public record LoanApproved(Guid LoanApplicationId, DateTime ApprovedAt) : IEvent;
+public record LoanApproved(Guid Id, Guid LoanApplicationId, DateTime ApprovedAt) : IEvent;

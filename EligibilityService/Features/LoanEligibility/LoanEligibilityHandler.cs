@@ -33,8 +33,8 @@ public class LoanEligibilityHandler(
         context.LoanApplications.Update(updated);
 
         IEvent @event = newStatus == LoanStatus.Approved
-            ? new LoanApproved(loan.Id, now)
-            : new LoanRejected(loan.Id, now);
+            ? new LoanApproved(Guid.NewGuid(), loan.Id, now)
+            : new LoanRejected(Guid.NewGuid(), loan.Id, now);
 
         await publisher.PublishAsync(@event, cancellationToken);
     }
