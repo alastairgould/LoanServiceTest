@@ -29,7 +29,7 @@ public class EligibilityProcessorTests
 
         await sut.ProcessAsync(CancellationToken.None);
 
-        await using var db = _fixture.DbFactory.CreateDbContext();
+        await using var db = await _fixture.DbFactory.CreateDbContextAsync();
         var loan = db.LoanApplications.Single(la => la.Id == loanId);
         loan.Status.ShouldBe(LoanStatus.Approved);
         loan.ReviewedAt.ShouldBe(CurrentTime.UtcDateTime);
@@ -45,7 +45,7 @@ public class EligibilityProcessorTests
 
         await sut.ProcessAsync(CancellationToken.None);
 
-        await using var db = _fixture.DbFactory.CreateDbContext();
+        await using var db = await _fixture.DbFactory.CreateDbContextAsync();
         db.LoanApplications.Single(la => la.Id == loanId).Status.ShouldBe(LoanStatus.Rejected);
 
         var entry = db.DecisionLogEntries.Single(d => d.LoanApplicationId == loanId && !d.Passed);
@@ -68,7 +68,7 @@ public class EligibilityProcessorTests
 
         await sut.ProcessAsync(CancellationToken.None);
 
-        await using var db = _fixture.DbFactory.CreateDbContext();
+        await using var db = await _fixture.DbFactory.CreateDbContextAsync();
         db.LoanApplications.Single(la => la.Id == loanId).Status.ShouldBe(LoanStatus.Rejected);
 
         var entry = db.DecisionLogEntries.Single(d => d.LoanApplicationId == loanId && !d.Passed);
@@ -87,7 +87,7 @@ public class EligibilityProcessorTests
 
         await sut.ProcessAsync(CancellationToken.None);
 
-        await using var db = _fixture.DbFactory.CreateDbContext();
+        await using var db = await _fixture.DbFactory.CreateDbContextAsync();
         db.LoanApplications.Single(la => la.Id == loanId).Status.ShouldBe(LoanStatus.Rejected);
 
         var entry = db.DecisionLogEntries.Single(d => d.LoanApplicationId == loanId && !d.Passed);
@@ -106,7 +106,7 @@ public class EligibilityProcessorTests
 
         await sut.ProcessAsync(CancellationToken.None);
 
-        await using var db = _fixture.DbFactory.CreateDbContext();
+        await using var db = await _fixture.DbFactory.CreateDbContextAsync();
         db.LoanApplications.Single(la => la.Id == loanId).Status.ShouldBe(LoanStatus.Rejected);
 
         var entry = db.DecisionLogEntries.Single(d => d.LoanApplicationId == loanId && !d.Passed);
@@ -127,7 +127,7 @@ public class EligibilityProcessorTests
 
         await sut.ProcessAsync(CancellationToken.None);
 
-        await using var db = _fixture.DbFactory.CreateDbContext();
+        await using var db = await _fixture.DbFactory.CreateDbContextAsync();
         var loan = db.LoanApplications.Single(la => la.Id == loanId);
         loan.Status.ShouldBe(LoanStatus.Approved);
         loan.ReviewedAt.ShouldBe(originalReviewedAt);
@@ -145,7 +145,7 @@ public class EligibilityProcessorTests
 
         await sut.ProcessAsync(CancellationToken.None);
 
-        await using var db = _fixture.DbFactory.CreateDbContext();
+        await using var db = await _fixture.DbFactory.CreateDbContextAsync();
         var outbox = db.OutboxMessages.Single();
         outbox.Type.ShouldBe(nameof(LoanApproved));
         outbox.OccurredAt.ShouldBe(CurrentTime.UtcDateTime);
@@ -168,7 +168,7 @@ public class EligibilityProcessorTests
 
         await sut.ProcessAsync(CancellationToken.None);
 
-        await using var db = _fixture.DbFactory.CreateDbContext();
+        await using var db = await _fixture.DbFactory.CreateDbContextAsync();
         var outbox = db.OutboxMessages.Single();
         outbox.Type.ShouldBe(nameof(LoanRejected));
         outbox.OccurredAt.ShouldBe(CurrentTime.UtcDateTime);
@@ -191,7 +191,7 @@ public class EligibilityProcessorTests
 
         await sut.ProcessAsync(CancellationToken.None);
 
-        await using var db = _fixture.DbFactory.CreateDbContext();
+        await using var db = await _fixture.DbFactory.CreateDbContextAsync();
         var entries = db.DecisionLogEntries.Where(d => d.LoanApplicationId == loanId).ToList();
         entries.Count.ShouldBe(3);
         entries.ShouldAllBe(e => e.Passed);
@@ -226,7 +226,7 @@ public class EligibilityProcessorTests
         await using var sut = await CreateSut(rules: rules);
         await sut.ProcessAsync(CancellationToken.None);
 
-        await using var db = _fixture.DbFactory.CreateDbContext();
+        await using var db = await _fixture.DbFactory.CreateDbContextAsync();
 
         db.LoanApplications.Single(la => la.Id == firstId).Status.ShouldBe(LoanStatus.Approved);
         db.LoanApplications.Single(la => la.Id == lastId).Status.ShouldBe(LoanStatus.Approved);
@@ -254,7 +254,7 @@ public class EligibilityProcessorTests
 
         await sut.ProcessAsync(CancellationToken.None);
 
-        await using var db = _fixture.DbFactory.CreateDbContext();
+        await using var db = await _fixture.DbFactory.CreateDbContextAsync();
         db.LoanApplications.Count(la => la.Status != LoanStatus.Pending).ShouldBe(2);
         db.LoanApplications.Count(la => la.Status == LoanStatus.Pending).ShouldBe(1);
     }
@@ -268,7 +268,7 @@ public class EligibilityProcessorTests
         DateTime? reviewedAt = null,
         DateTime? createdAt = null)
     {
-        await using var db = _fixture.DbFactory.CreateDbContext();
+        await using var db = await _fixture.DbFactory.CreateDbContextAsync();
         db.LoanApplications.Add(new LoanApplication.Domain.LoanApplication(
             id, "John", "john@gmail.com", monthlyIncome, requestedAmount, termMonths,
             status, createdAt ?? new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), reviewedAt));
