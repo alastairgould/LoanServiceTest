@@ -25,6 +25,7 @@ public class LoanApplicationRequestTests : IClassFixture<CustomWebApplicationFac
         var response = await client.PostAsync("/loan-applications", request);
         var result = await response.Content.ReadFromJsonAsync<LoanApplicationResult>();
 
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
         result.Status.ShouldBe(LoanStatus.Pending);
         result.Id.ShouldNotBe(Guid.Empty);
         result.CreatedAt.ShouldBe(CurrentTime.UtcDateTime);
