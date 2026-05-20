@@ -28,7 +28,7 @@ public class LoanContext : DbContext
 
        modelBuilder.Entity<DecisionLogEntry>()
            .HasOne<LoanApplication>()
-           .WithMany()
+           .WithMany(la => la.DecisionLogEntries)
            .HasForeignKey(e => e.LoanApplicationId);
 
        modelBuilder.Entity<OutboxMessage>()

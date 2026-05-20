@@ -1,5 +1,6 @@
 using LoanApplication.Domain;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace LoanApplication.Features.RetrieveLoanApplication;
 
@@ -10,13 +11,15 @@ public class RetrieveLoanApplicationController(LoanContext loanContext) : Contro
     [HttpGet("{id:guid}")]
     public IActionResult Retrieve(Guid id)
     {
-        var application = loanContext.LoanApplications.Find(id);
+        var application = loanContext.LoanApplications
+            .Include(la => la.DecisionLogEntries)
+            .AsNoTracking()
+            .FirstOrDefault(la => la.Id == id);
 
         if (application is null)
             return NotFound();
 
-        var decisionLog = loanContext.DecisionLogEntries
-            .Where(d => d.LoanApplicationId == id)
+        var decisionLog = application.DecisionLogEntries
             .OrderBy(d => d.EvaluatedAt)
             .Select(d => new DecisionLogEntryDetails(d.RuleName, d.Passed, d.Message, d.EvaluatedAt))
             .ToList();
