@@ -2,7 +2,6 @@ using EligibilityService.Features.LoanEligibility.Rules;
 using EligibilityService.Infrastructure.EventPublishing;
 using LoanApplication.Domain;
 using LoanApplication.Domain.Events;
-using LoanEntity = LoanApplication.Domain.LoanApplication;
 
 namespace EligibilityService.Features.LoanEligibility;
 
@@ -12,7 +11,7 @@ public class LoanEligibilityHandler(
     LoanContext context,
     IEventPublisher publisher)
 {
-    public async Task HandleAsync(LoanEntity loan, CancellationToken cancellationToken)
+    public async Task HandleAsync(LoanApplication.Domain.LoanApplication loan, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
