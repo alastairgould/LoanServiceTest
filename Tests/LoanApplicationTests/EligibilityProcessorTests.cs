@@ -12,6 +12,7 @@ namespace LoanApplicationTests;
 
 public class EligibilityProcessorTests
 {
+    private static readonly DateTimeOffset CurrentTime = new(2026, 4, 5, 13, 30, 30, TimeSpan.Zero);
     private readonly EligibilityTestFixture _fixture = new();
 
     [Theory]
@@ -22,11 +23,7 @@ public class EligibilityProcessorTests
     [InlineData(3000, 10000, 60)]
     public async Task ApprovesLoan_WhenAllRulesPass(int monthlyIncome, int requestedAmount, int termMonths)
     {
-        var currentTime = new DateTimeOffset(2026, 4, 5, 13, 30, 30, TimeSpan.Zero);
-        var fakeTimeProvider = new FakeTimeProvider();
-        fakeTimeProvider.AdjustTime(currentTime);
-
-        var sut = await CreateSut(fakeTimeProvider);
+        var sut = await CreateSut();
 
         var loanId = Guid.NewGuid();
         await SeedLoan(loanId, monthlyIncome, requestedAmount, termMonths);
@@ -36,13 +33,13 @@ public class EligibilityProcessorTests
         await using var db = _fixture.DbFactory.CreateDbContext();
         var loan = db.LoanApplications.Single(la => la.Id == loanId);
         loan.Status.ShouldBe(LoanStatus.Approved);
-        loan.ReviewedAt.ShouldBe(currentTime.UtcDateTime);
+        loan.ReviewedAt.ShouldBe(CurrentTime.UtcDateTime);
     }
 
     [Fact]
     public async Task RejectsLoan_WhenMonthlyIncomeTooLow()
     {
-        var sut = await CreateSut(new FakeTimeProvider());
+        var sut = await CreateSut();
 
         var loanId = Guid.NewGuid();
         await SeedLoan(loanId, monthlyIncome: 1999, requestedAmount: 1000m, termMonths: 24);
@@ -65,7 +62,7 @@ public class EligibilityProcessorTests
     [Fact]
     public async Task RejectsLoan_WhenRequestedAmountExceedsFourTimesIncome()
     {
-        var sut = await CreateSut(new FakeTimeProvider());
+        var sut = await CreateSut();
 
         var loanId = Guid.NewGuid();
         await SeedLoan(loanId, monthlyIncome: 3000, requestedAmount: 12001m, termMonths: 24);
@@ -84,7 +81,7 @@ public class EligibilityProcessorTests
     [Fact]
     public async Task RejectsLoan_WhenTermBelowMinimum()
     {
-        var sut = await CreateSut(new FakeTimeProvider());
+        var sut = await CreateSut();
 
         var loanId = Guid.NewGuid();
         await SeedLoan(loanId, monthlyIncome: 3000, requestedAmount: 5000m, termMonths: 11);
@@ -103,7 +100,7 @@ public class EligibilityProcessorTests
     [Fact]
     public async Task RejectsLoan_WhenTermAboveMaximum()
     {
-        var sut = await CreateSut(new FakeTimeProvider());
+        var sut = await CreateSut();
 
         var loanId = Guid.NewGuid();
         await SeedLoan(loanId, monthlyIncome: 3000, requestedAmount: 5000m, termMonths: 61);
@@ -122,7 +119,7 @@ public class EligibilityProcessorTests
     [Fact]
     public async Task DoesNotProcessLoan_WhenAlreadyReviewed()
     {
-        var sut = await CreateSut(new FakeTimeProvider());
+        var sut = await CreateSut();
 
         var loanId = Guid.NewGuid();
         var originalReviewedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -142,11 +139,7 @@ public class EligibilityProcessorTests
     [Fact]
     public async Task PublishesLoanApprovedEvent_WhenLoanApproved()
     {
-        var currentTime = new DateTimeOffset(2026, 4, 5, 13, 30, 30, TimeSpan.Zero);
-        var fakeTimeProvider = new FakeTimeProvider();
-        fakeTimeProvider.AdjustTime(currentTime);
-
-        var sut = await CreateSut(fakeTimeProvider);
+        var sut = await CreateSut();
 
         var loanId = Guid.NewGuid();
         await SeedLoan(loanId, monthlyIncome: 3000, requestedAmount: 10000m, termMonths: 24);
@@ -156,24 +149,20 @@ public class EligibilityProcessorTests
         await using var db = _fixture.DbFactory.CreateDbContext();
         var outbox = db.OutboxMessages.Single();
         outbox.Type.ShouldBe(nameof(LoanApproved));
-        outbox.OccurredAt.ShouldBe(currentTime.UtcDateTime);
+        outbox.OccurredAt.ShouldBe(CurrentTime.UtcDateTime);
         outbox.PublishedAt.ShouldBeNull();
 
         var payload = JsonSerializer.Deserialize<LoanApproved>(outbox.Payload);
         payload.ShouldNotBeNull();
         payload.Id.ShouldNotBe(Guid.Empty);
         payload.LoanApplicationId.ShouldBe(loanId);
-        payload.ApprovedAt.ShouldBe(currentTime.UtcDateTime);
+        payload.ApprovedAt.ShouldBe(CurrentTime.UtcDateTime);
     }
 
     [Fact]
     public async Task PublishesLoanRejectedEvent_WhenLoanRejected()
     {
-        var currentTime = new DateTimeOffset(2026, 4, 5, 13, 30, 30, TimeSpan.Zero);
-        var fakeTimeProvider = new FakeTimeProvider();
-        fakeTimeProvider.AdjustTime(currentTime);
-
-        var sut = await CreateSut(fakeTimeProvider);
+        var sut = await CreateSut();
 
         var loanId = Guid.NewGuid();
         await SeedLoan(loanId, monthlyIncome: 1999, requestedAmount: 1000m, termMonths: 24);
@@ -183,24 +172,20 @@ public class EligibilityProcessorTests
         await using var db = _fixture.DbFactory.CreateDbContext();
         var outbox = db.OutboxMessages.Single();
         outbox.Type.ShouldBe(nameof(LoanRejected));
-        outbox.OccurredAt.ShouldBe(currentTime.UtcDateTime);
+        outbox.OccurredAt.ShouldBe(CurrentTime.UtcDateTime);
         outbox.PublishedAt.ShouldBeNull();
 
         var payload = JsonSerializer.Deserialize<LoanRejected>(outbox.Payload);
         payload.ShouldNotBeNull();
         payload.Id.ShouldNotBe(Guid.Empty);
         payload.LoanApplicationId.ShouldBe(loanId);
-        payload.RejectedAt.ShouldBe(currentTime.UtcDateTime);
+        payload.RejectedAt.ShouldBe(CurrentTime.UtcDateTime);
     }
 
     [Fact]
     public async Task LogsDecisionEntryForEachRule_WhenLoanProcessed()
     {
-        var currentTime = new DateTimeOffset(2026, 4, 5, 13, 30, 30, TimeSpan.Zero);
-        var fakeTimeProvider = new FakeTimeProvider();
-        fakeTimeProvider.AdjustTime(currentTime);
-
-        var sut = await CreateSut(fakeTimeProvider);
+        var sut = await CreateSut();
 
         var loanId = Guid.NewGuid();
         await SeedLoan(loanId, monthlyIncome: 3000, requestedAmount: 10000m, termMonths: 24);
@@ -211,7 +196,7 @@ public class EligibilityProcessorTests
         var entries = db.DecisionLogEntries.Where(d => d.LoanApplicationId == loanId).ToList();
         entries.Count.ShouldBe(3);
         entries.ShouldAllBe(e => e.Passed);
-        entries.ShouldAllBe(e => e.EvaluatedAt == currentTime.UtcDateTime);
+        entries.ShouldAllBe(e => e.EvaluatedAt == CurrentTime.UtcDateTime);
 
         entries.ShouldAllBe(e => e.Message == "Passed Eligibility Rule");
         entries.Select(e => e.RuleName).ShouldBe(["MinimumIncome", "AmountWithinLimit", "TermWithinRange"], ignoreOrder: true);
@@ -220,9 +205,6 @@ public class EligibilityProcessorTests
     [Fact]
     public async Task IsolatesFailure_WhenOneLoanInBatchThrows()
     {
-        var fakeTimeProvider = new FakeTimeProvider();
-        fakeTimeProvider.AdjustTime(new DateTimeOffset(2026, 4, 5, 13, 30, 30, TimeSpan.Zero));
-
         var firstId = Guid.NewGuid();
         var poisonId = Guid.NewGuid();
         var lastId = Guid.NewGuid();
@@ -242,7 +224,7 @@ public class EligibilityProcessorTests
             new ThrowingRule(poisonId)
         ];
 
-        await using var sut = await CreateSut(fakeTimeProvider, rules: rules);
+        await using var sut = await CreateSut(rules: rules);
         await sut.ProcessAsync(CancellationToken.None);
 
         await using var db = _fixture.DbFactory.CreateDbContext();
@@ -265,10 +247,7 @@ public class EligibilityProcessorTests
     [Fact]
     public async Task ProcessesUpToBatchSize_WhenMorePendingLoans()
     {
-        var fakeTimeProvider = new FakeTimeProvider();
-        fakeTimeProvider.AdjustTime(new DateTimeOffset(2026, 4, 5, 13, 30, 30, TimeSpan.Zero));
-
-        var sut = await CreateSut(fakeTimeProvider, batchSize: 2);
+        var sut = await CreateSut(batchSize: 2);
 
         await SeedLoan(Guid.NewGuid(), monthlyIncome: 3000m, requestedAmount: 5000m, termMonths: 24);
         await SeedLoan(Guid.NewGuid(), monthlyIncome: 3000m, requestedAmount: 5000m, termMonths: 24);
@@ -298,10 +277,11 @@ public class EligibilityProcessorTests
     }
 
     private async Task<EligibilityProcessor> CreateSut(
-        TimeProvider timeProvider,
+        TimeProvider? timeProvider = null,
         int batchSize = 500,
         IEligibilityRule[]? rules = null)
     {
+        timeProvider ??= CreateTimeProvider();
         rules ??=
         [
             new MinimumIncomeRule(),
@@ -311,6 +291,13 @@ public class EligibilityProcessorTests
         var processorFactory = new EligibilityProcessorFactory(
             _fixture.DbFactory, NullLoggerFactory.Instance, timeProvider, rules, batchSize);
         return await processorFactory.CreateAsync();
+    }
+
+    private static FakeTimeProvider CreateTimeProvider(DateTimeOffset? currentTime = null)
+    {
+        var provider = new FakeTimeProvider();
+        provider.AdjustTime(currentTime ?? CurrentTime);
+        return provider;
     }
 
     private sealed class ThrowingRule(Guid targetLoanId) : IEligibilityRule
@@ -323,7 +310,7 @@ public class EligibilityProcessorTests
             {
                 throw new InvalidOperationException("simulated rule failure");
             }
-            
+
             return true;
         }
     }
