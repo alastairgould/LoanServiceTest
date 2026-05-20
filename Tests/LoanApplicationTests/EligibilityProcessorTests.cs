@@ -6,7 +6,6 @@ using LoanApplication.Domain;
 using LoanApplication.Domain.Events;
 using Microsoft.Extensions.Time.Testing;
 using Shouldly;
-using LoanEntity = LoanApplication.Domain.LoanApplication;
 
 namespace LoanApplicationTests;
 
@@ -224,7 +223,7 @@ public class EligibilityProcessorTests
         DateTime? reviewedAt = null)
     {
         await using var db = _fixture.DbFactory.CreateDbContext();
-        db.LoanApplications.Add(new LoanEntity(
+        db.LoanApplications.Add(new LoanApplication.Domain.LoanApplication(
             id, "John", "john@gmail.com", monthlyIncome, requestedAmount, termMonths,
             status, new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), reviewedAt));
         await db.SaveChangesAsync();

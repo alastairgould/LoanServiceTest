@@ -11,9 +11,15 @@ public class RetrieveLoanApplicationController(LoanContext loanContext) : Contro
     public IActionResult Retrieve(Guid id)
     {
         var application = loanContext.LoanApplications.Find(id);
-        
+
         if (application is null)
             return NotFound();
+
+        var decisionLog = loanContext.DecisionLogEntries
+            .Where(d => d.LoanApplicationId == id)
+            .OrderBy(d => d.EvaluatedAt)
+            .Select(d => new DecisionLogEntryDetails(d.RuleName, d.Passed, d.Message, d.EvaluatedAt))
+            .ToList();
 
         return Ok(new LoanApplicationDetails(
             application.Id,
@@ -24,6 +30,7 @@ public class RetrieveLoanApplicationController(LoanContext loanContext) : Contro
             application.TermMonths,
             application.Status,
             application.CreatedAt,
-            application.ReviewedAt));
+            application.ReviewedAt,
+            decisionLog));
     }
 }

@@ -16,9 +16,8 @@ public class OutboxMessageHandler(
             "Publishing outbox message {MessageId} of type {MessageType}: {Payload}",
             message.Id, message.Type, message.Payload);
 
-        context.Entry(message)
-            .Property(m => m.PublishedAt)
-            .CurrentValue = timeProvider.GetUtcNow().UtcDateTime;
+        var published = message with { PublishedAt = timeProvider.GetUtcNow().UtcDateTime };
+        context.OutboxMessages.Update(published);
 
         return Task.CompletedTask;
     }

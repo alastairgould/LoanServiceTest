@@ -11,6 +11,7 @@ public sealed class OutboxProcessor(
     public async Task ProcessAsync(CancellationToken cancellationToken)
     {
         var unpublished = await context.OutboxMessages
+            .AsNoTracking()
             .Where(m => m.PublishedAt == null)
             .OrderBy(m => m.OccurredAt)
             .ToListAsync(cancellationToken);

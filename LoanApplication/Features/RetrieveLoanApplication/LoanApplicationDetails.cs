@@ -11,4 +11,7 @@ public record LoanApplicationDetails(
     int TermMonths,
     LoanStatus Status,
     DateTime CreatedAt,
-    DateTime? ReviewedAt);
+    DateTime? ReviewedAt,
+    IReadOnlyList<DecisionLogEntryDetails> DecisionLog);
+
+public record DecisionLogEntryDetails(string RuleName, bool Passed, string Message, DateTime EvaluatedAt);

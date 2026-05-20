@@ -6,6 +6,7 @@ using LoanApplication.Domain;
 using LoanApplication.Features.ApplyForLoan;
 using LoanApplication.Features.RetrieveLoanApplication;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 using Shouldly;
@@ -42,7 +43,43 @@ public class RetrieveLoanApplicationTests : IClassFixture<CustomWebApplicationFa
         details.Status.ShouldBe(LoanStatus.Pending);
         details.CreatedAt.ShouldBe(currentTime.UtcDateTime);
         details.ReviewedAt.ShouldBeNull();
+        details.DecisionLog.ShouldBeEmpty();
     }
+
+    [Fact]
+    public async Task RetrieveLoanApplicationIncludesDecisionLog_WhenEntriesExist()
+    {
+        var client = CreateApi(new FakeTimeProvider());
+
+        var loanId = Guid.NewGuid();
+        var createdAt = new DateTime(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc);
+        var reviewedAt = new DateTime(2026, 4, 1, 0, 5, 0, DateTimeKind.Utc);
+
+        await using (var seed = await GetDbContextFactory().CreateDbContextAsync())
+        {
+            seed.LoanApplications.Add(new LoanApplication.Domain.LoanApplication(
+                loanId, "Jane", "jane@example.com", 3000m, 10000m, 24,
+                LoanStatus.Approved, createdAt, reviewedAt));
+            seed.DecisionLogEntries.AddRange(
+                new DecisionLogEntry(Guid.NewGuid(), loanId, "MinimumIncome", true, "Passed Eligibility Rule", reviewedAt),
+                new DecisionLogEntry(Guid.NewGuid(), loanId, "AmountWithinLimit", true, "Passed Eligibility Rule", reviewedAt),
+                new DecisionLogEntry(Guid.NewGuid(), loanId, "TermWithinRange", true, "Passed Eligibility Rule", reviewedAt));
+            await seed.SaveChangesAsync();
+        }
+
+        var response = await client.GetAsync($"/loan-applications/{loanId}");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var details = await response.Content.ReadFromJsonAsync<LoanApplicationDetails>();
+        details.ShouldNotBeNull();
+        details.DecisionLog.Count.ShouldBe(3);
+        details.DecisionLog.ShouldAllBe(e => e.Passed && e.Message == "Passed Eligibility Rule" && e.EvaluatedAt == reviewedAt);
+        details.DecisionLog.Select(e => e.RuleName)
+            .ShouldBe(["MinimumIncome", "AmountWithinLimit", "TermWithinRange"], ignoreOrder: true);
+    }
+
+    private IDbContextFactory<LoanContext> GetDbContextFactory() =>
+        _factory.Services.GetRequiredService<IDbContextFactory<LoanContext>>();
 
     [Fact]
     public async Task RetrieveLoanApplicationReturnsNotFound_WhenItDoesNotExist()
