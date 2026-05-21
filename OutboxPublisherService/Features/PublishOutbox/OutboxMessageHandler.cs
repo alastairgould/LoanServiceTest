@@ -3,12 +3,12 @@ using Microsoft.Extensions.Logging;
 
 namespace OutboxPublisherService.Features.PublishOutbox;
 
-public class OutboxMessageHandler(
+public sealed class OutboxMessageHandler(
     LoanContext context,
     ILogger<OutboxMessageHandler> logger,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider) : IOutboxMessageHandler
 {
-    public virtual Task HandleAsync(OutboxMessage message, CancellationToken cancellationToken)
+    public Task HandleAsync(OutboxMessage message, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 

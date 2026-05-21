@@ -7,7 +7,7 @@ namespace OutboxPublisherService.Infrastructure.BackgroundService;
 
 public sealed class OutboxProcessor(
     LoanContext context,
-    OutboxMessageHandler handler,
+    IOutboxMessageHandler handler,
     ILogger<OutboxProcessor> logger,
     int batchSize) : IAsyncDisposable
 {

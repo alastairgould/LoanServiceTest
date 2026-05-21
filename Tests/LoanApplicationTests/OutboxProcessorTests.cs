@@ -88,7 +88,8 @@ public class OutboxProcessorTests
         await SeedOutboxMessage(lastId, occurredAt: new DateTime(2026, 4, 3, 0, 0, 0, DateTimeKind.Utc));
 
         var context = await _fixture.DbFactory.CreateDbContextAsync();
-        var handler = new ThrowingHandler(context, CreateTimeProvider(), poisonId);
+        var inner = new OutboxMessageHandler(context, NullLogger<OutboxMessageHandler>.Instance, CreateTimeProvider());
+        var handler = new ThrowingHandler(inner, poisonId);
         await using var sut = new OutboxProcessor(
             context, handler, NullLogger<OutboxProcessor>.Instance, batchSize: 500);
 
@@ -127,16 +128,15 @@ public class OutboxProcessorTests
         return provider;
     }
 
-    private sealed class ThrowingHandler(LoanContext context, TimeProvider timeProvider, Guid targetMessageId)
-        : OutboxMessageHandler(context, NullLogger<OutboxMessageHandler>.Instance, timeProvider)
+    private sealed class ThrowingHandler(IOutboxMessageHandler inner, Guid targetMessageId) : IOutboxMessageHandler
     {
-        public override Task HandleAsync(OutboxMessage message, CancellationToken cancellationToken)
+        public Task HandleAsync(OutboxMessage message, CancellationToken cancellationToken)
         {
             if (message.Id == targetMessageId)
             {
                 throw new InvalidOperationException("simulated handler failure");
             }
-            return base.HandleAsync(message, cancellationToken);
+            return inner.HandleAsync(message, cancellationToken);
         }
     }
 }
