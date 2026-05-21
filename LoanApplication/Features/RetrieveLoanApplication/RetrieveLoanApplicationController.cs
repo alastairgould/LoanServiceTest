@@ -17,7 +17,9 @@ public class RetrieveLoanApplicationController(LoanContext loanContext) : Contro
             .FirstOrDefaultAsync(la => la.Id == id, cancellationToken);
 
         if (application is null)
+        {
             return NotFound();
+        }
 
         var decisionLog = application.DecisionLogEntries
             .OrderBy(d => d.EvaluatedAt)

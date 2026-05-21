@@ -133,7 +133,9 @@ public class OutboxProcessorTests
         public override Task HandleAsync(OutboxMessage message, CancellationToken cancellationToken)
         {
             if (message.Id == targetMessageId)
+            {
                 throw new InvalidOperationException("simulated handler failure");
+            }
             return base.HandleAsync(message, cancellationToken);
         }
     }

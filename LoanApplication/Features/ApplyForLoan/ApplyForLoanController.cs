@@ -17,7 +17,9 @@ public class ApplyForLoanController(
         var errors = validator.Validate(request);
 
         if (errors.Count > 0)
+        {
             return ValidationProblem(new ValidationProblemDetails(errors));
+        }
 
         var loan = new Domain.LoanApplication(
             Guid.NewGuid(),
